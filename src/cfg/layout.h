@@ -24,7 +24,7 @@
  * prev free list element pointer (8 bytes)
  * next free list element pointer (8 bytes)
  */
-#define JALLOC_FREE_LISTPREV(blkp) (*(void **)(blkp))
-#define JALLOC_FREE_LISTNEXT(blkp) (*(void **)((jalloc_byte_t *)(blkp) + sizeof(void *)))
+#define JALLOC_FREELISTPREV(blkp) (*(void **)(blkp))
+#define JALLOC_FREELISTNEXT(blkp) (*(void **)((jalloc_byte_t *)(blkp) + sizeof(void *)))
 
 #endif /* JALLOC_CFG_LAYOUT_H_ */
