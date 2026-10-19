@@ -24,4 +24,14 @@
 void *
 jalloc(size_t sz);
 
+/**
+ * @brief Deallocates the allocated area.
+ *
+ * @param ptr Pointer to the beginning of the memory area to deallocate.
+ *
+ * @return None.
+ */
+void
+jfree(void * ptr);
+
 #endif /* JALLOC_H_ */
