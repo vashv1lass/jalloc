@@ -1,10 +1,20 @@
+/**
+ * @file jalloc.c
+ * @brief Public jalloc allocator interface function definitions.
+ *
+ * @author Maksim Vashkevich
+ * @date 10/16/26
+ *
+ * @copyright Copyright (c) 2026, Maksim Vashkevich. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 #include "jalloc.h"
 
 #include "cfg/conf.h"
 #include "cfg/layout.h"
 #include "logic/buddy.h"
 #include "logic/segregated.h"
-#include "os/mem.h"
 
 #include <errno.h>
 #include <stdint.h>
@@ -19,6 +29,12 @@ jalloc(size_t sz)
 		errno = EINVAL;
 		return NULL;
 	}
+
+	if (sz > SIZE_MAX - JALLOC_BLKHDRSZ) {
+		errno = EOVERFLOW;
+		return NULL;
+	}
+
 	if ((targorder = jblkorder(sz + JALLOC_BLKHDRSZ)) > JALLOC_MAXORDER) {
 		errno = ENOMEM;
 		return NULL;
@@ -35,7 +51,7 @@ jalloc(size_t sz)
 
 		if (blkp) break;
 
-		if (jmemrequest() == -1) return NULL; /* OOM */
+		if (jmemrequest() == -1) return NULL;
 	}
 
 	jsplit(blkp, factorder, targorder);

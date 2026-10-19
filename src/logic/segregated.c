@@ -1,19 +1,36 @@
+/**
+ * @file logic/segregated.h
+ * @brief Segregated free list related data structures & algorithms functions definitions.
+ *
+ * @author Maksim Vashkevich
+ * @date 10/17/26
+ *
+ * @copyright Copyright (c) 2026, Maksim Vashkevich. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 #include "logic/segregated.h"
 
 #include "cfg/conf.h"
 #include "cfg/layout.h"
 #include "os/mem.h"
 
+/**
+ * @brief Free lists.
+ *
+ * @internal
+ */
 static void * jfreelists_[JALLOC_ORDERCNT];
 
 int
 jmemrequest(void)
 {
 	void * chunkp = josmemrequest(JALLOC_CHUNKSZ);
-	if (!chunkp) return -1; /* OOM */
+	if (!chunkp) return -1;
 
 	for (size_t offset = 0; offset < JALLOC_CHUNKSZ; offset += JALLOC_MAXBLKSZ) {
 		void * blkhdr = (void *)((jalloc_byte_t *)chunkp + offset);
+
 		JALLOC_SET_BLKHDR(blkhdr, JALLOC_MAXORDER, 0x01);
 		jfreelist_pushblk(JALLOC_PAYLOAD(blkhdr));
 	}
@@ -49,5 +66,5 @@ jfreelist_removeblk(void * blkp)
 }
 
 void *
-jfreelist_peek(uint8_t absorder)
-{ return jfreelists_[absorder - JALLOC_MINORDER]; }
+jfreelist_peek(uint8_t order)
+{ return jfreelists_[order - JALLOC_MINORDER]; }

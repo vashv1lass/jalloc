@@ -1,3 +1,14 @@
+/**
+ * @file cfg/conf.h
+ * @brief The main config of the jalloc allocator.
+ *
+ * @author Maksim Vashkevich
+ * @date 10/16/26
+ *
+ * @copyright Copyright (c) 2026, Maksim Vashkevich. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 #ifndef JALLOC_CFG_CONF_H_
 #define JALLOC_CFG_CONF_H_
 
@@ -5,20 +16,39 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define JALLOC_ALIGN (_Alignof(max_align_t))
+/**
+ * @defgroup conf The allocator config
+ * @internal
+ *
+ * @{
+ */
 
+#define JALLOC_ALIGN (_Alignof(max_align_t)) /**< The system-specific alignment. */
+
+/**
+ * @brief Aligns the value up to certain alignment parameter.
+ *
+ * @param x The value to align up.
+ * @param align The alignment parameter.
+ *
+ * @return The aligned to \p align value of \p x.
+ *
+ * @note Function-like macro.
+ */
 #define JALLOC_ALIGNUP(x, align) (((x) + (align) - 1) & ~((align) - 1))
 
-#define JALLOC_MINORDER (5)
-#define JALLOC_MAXORDER (20)
+#define JALLOC_MINORDER (5)  /**< Minimal absolute order of a block */
+#define JALLOC_MAXORDER (20) /**< Maximal absolute order of a block */
 
-#define JALLOC_ORDERCNT (JALLOC_MAXORDER - JALLOC_MINORDER + 1)
+#define JALLOC_ORDERCNT (JALLOC_MAXORDER - JALLOC_MINORDER + 1) /**< Block order count */
 
-#define JALLOC_MINBLKSZ (1 << JALLOC_MINORDER) /* 32 B */
-#define JALLOC_MAXBLKSZ (1 << JALLOC_MAXORDER) /* 1 MiB */
+#define JALLOC_MINBLKSZ (1 << JALLOC_MINORDER) /**< Minimal block size */
+#define JALLOC_MAXBLKSZ (1 << JALLOC_MAXORDER) /**< Maximal block size */
 
-#define JALLOC_CHUNKSZ (4 * JALLOC_MAXBLKSZ)
+#define JALLOC_CHUNKSZ (4 * JALLOC_MAXBLKSZ) /**< Allocation chunk size */
 
-typedef uint8_t jalloc_byte_t; /* used for pointer arithmetic */
+typedef uint8_t jalloc_byte_t; /**< The type used for a pointer arithmetic */
+
+/** @} */
 
 #endif /* JALLOC_CFG_CONF_H_ */

@@ -1,3 +1,14 @@
+/**
+ * @file logic/buddy.c
+ * @brief Buddy system related algorithms functions definitions.
+ *
+ * @author Maksim Vashkevich
+ * @date 10/17/26
+ *
+ * @copyright Copyright (c) 2026, Maksim Vashkevich. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 #include "logic/buddy.h"
 
 #include "cfg/conf.h"
@@ -11,8 +22,7 @@ void
 jsplit(void * blkp, uint8_t factorder, uint8_t targorder)
 {
 	while (factorder-- > targorder) {
-		size_t halfsz	   = 1 << factorder;
-		void * rhsbuddy = (void *)((jalloc_byte_t *)blkp + halfsz);
+		void * rhsbuddy = (void *)((jalloc_byte_t *)blkp + ((ptrdiff_t)1 << factorder));
 
 		JALLOC_SET_BLKHDR(JALLOC_BLKHDR(rhsbuddy), factorder, 0x01);
 		jfreelist_pushblk(rhsbuddy);
