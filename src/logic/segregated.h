@@ -37,11 +37,12 @@
 static inline uint8_t
 jblkorder(size_t blksz)
 {
-	/* order = max(0, ceil(log2(blksz))) */
+	/* order = max(JALLOC_MINORDER, ceil(log2(blksz))) */
 	uint8_t res = 0;
 
-	if (blksz <= JALLOC_MINBLKSZ) return 0; /* max(0, ...) */
-	blksz--;				/* ceil(log2(x)) == floor(log2(x - 1)) + 1 */
+	if (blksz <= JALLOC_MINBLKSZ) return JALLOC_MINORDER; /* max(JALLOC_MINORDER, ...) */
+
+	blksz--; /* ceil(log2(x)) == floor(log2(x - 1)) + 1 */
 
 	/* __builtin_clzll(x) */
 #if SIZE_MAX > 0xFFFFFFFF

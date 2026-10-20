@@ -59,11 +59,11 @@
  */
 
 /**
- * @brief Get the relative order from the header.
+ * @brief Get the absolute order from the header.
  *
  * @param blkhdr Pointer to a block header.
  *
- * @return The relative order.
+ * @return The absolute order.
  *
  * @note Function-like macro.
  */
@@ -84,7 +84,7 @@
  * @brief Set the block header.
  *
  * @param blkhdr Pointer to a block header.
- * @param order Order of a block.
+ * @param order Absolute order of a block.
  * @param free The free bit value of a block.
  *
  * @return None.

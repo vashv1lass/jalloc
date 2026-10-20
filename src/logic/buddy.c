@@ -28,3 +28,18 @@ jsplit(void * blkp, uint8_t factorder, uint8_t targorder)
 		jfreelist_pushblk(rhsbuddy);
 	}
 }
+
+void *
+jcoalesce(void * blkhdr)
+{
+	for (uint8_t order = JALLOC_GET_ORDER(blkhdr); order < JALLOC_MAXORDER; order++) {
+		void * buddyhdr = (void *)((uintptr_t)blkhdr ^ (1 << order));
+		if (!JALLOC_GET_FREE(buddyhdr) || JALLOC_GET_ORDER(buddyhdr) != order) break;
+
+		jfreelist_removeblk(JALLOC_PAYLOAD(buddyhdr));
+		if ((uintptr_t)buddyhdr < (uintptr_t)blkhdr) blkhdr = buddyhdr;
+		JALLOC_SET_BLKHDR(blkhdr, order + 1, 0x01);
+	}
+
+	return blkhdr;
+}

@@ -14,9 +14,11 @@
 #include "cfg/conf.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 void *
 josmemrequest(size_t sz)
@@ -28,7 +30,12 @@ josmemrequest(size_t sz)
 	}
 	size_t totalsz = sz + align;
 
-	void * raw = mmap(NULL, totalsz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	int anonymous_fd = open("/dev/zero", O_RDWR);
+	if (anonymous_fd == -1) return NULL;
+
+	void * raw = mmap(NULL, totalsz, PROT_READ | PROT_WRITE, MAP_PRIVATE, anonymous_fd, 0);
+	close(anonymous_fd);
+
 	if (raw == MAP_FAILED) return NULL;
 
 	uintptr_t raw_base_addr = (uintptr_t)raw;

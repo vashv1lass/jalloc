@@ -36,6 +36,16 @@
 void
 jsplit(void * blkp, uint8_t factorder, uint8_t targorder);
 
+/**
+ * @brief Successively coalesces the block with its free buddy while it exists.
+ *
+ * @param blkhdr Pointer to a header of a block to coalesce.
+ *
+ * @return Pointer to a header of a coalesced block.
+ */
+void *
+jcoalesce(void * blkhdr);
+
 /** @} */
 
 #endif /* JALLOC_LOGIC_BUDDY_H_ */

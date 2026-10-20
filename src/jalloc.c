@@ -59,3 +59,16 @@ jalloc(size_t sz)
 
 	return blkp;
 }
+
+void
+jfree(void * ptr)
+{
+	if (ptr == NULL) return;
+
+	void *	blkhdr = JALLOC_BLKHDR(ptr);
+	uint8_t order  = JALLOC_GET_ORDER(blkhdr);
+
+	JALLOC_SET_BLKHDR(blkhdr, order, 0x01);
+	void * finalhdr = jcoalesce(blkhdr);
+	jfreelist_pushblk(JALLOC_PAYLOAD(finalhdr));
+}
