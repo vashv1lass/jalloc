@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026, Maksim Vashkevich. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 #include "testjalloc.h"
 
 #include "cfg/layout.h"
@@ -149,6 +154,221 @@ jalloc_verify(void)
 }
 
 TEST
+jcalloc_verify_einval(void)
+{
+	ASSERT_EQ(jcalloc(0, sizeof(int)), NULL);
+	ASSERT_EQ(errno, EINVAL);
+
+	PASS();
+}
+
+TEST
+jcalloc_verify_eoverflow(void)
+{
+	ASSERT_EQ(jcalloc(SIZE_MAX / 2, 4), NULL);
+	ASSERT_EQ(errno, EOVERFLOW);
+
+	PASS();
+}
+
+TEST
+jcalloc_verify_zeroinit(void)
+{
+	size_t nmemb = 112;
+	int *  arr   = (int *)jcalloc(nmemb, sizeof(int));
+	ASSERT_NEQm((void *)arr, NULL, "jcalloc failed");
+
+	for (size_t i = 0; i < nmemb; i++) ASSERT_EQ(arr[i], 0);
+	jfree(arr);
+
+	PASS();
+}
+
+static void
+jcalloc_verify(void)
+{
+	RUN_TEST(jcalloc_verify_einval);
+	RUN_TEST(jcalloc_verify_eoverflow);
+	RUN_TEST(jcalloc_verify_zeroinit);
+}
+
+TEST
+jrealloc_verify_jalloc(void)
+{
+	size_t const TESTSZ = 112;
+
+	/* EINVAL for zero size verifying */
+	errno		    = 0;
+	void * rezero	    = jrealloc(NULL, 0);
+	int    rezero_errno = errno;
+
+	errno		   = 0;
+	void * jzero	   = jalloc(0);
+	int    jzero_errno = errno;
+
+	ASSERT_EQ(rezero, NULL);
+	ASSERT_EQ(jzero, NULL);
+	ASSERT_EQ(jzero_errno, rezero_errno);
+
+	/* EOVERFLOW verifying */
+	errno			= 0;
+	void * reoverflow	= jrealloc(NULL, SIZE_MAX);
+	int    reoverflow_errno = errno;
+
+	errno		       = 0;
+	void * joverflow       = jalloc(SIZE_MAX);
+	int    joverflow_errno = errno;
+
+	ASSERT_EQ(reoverflow, NULL);
+	ASSERT_EQ(joverflow, NULL);
+	ASSERT_EQ(joverflow_errno, reoverflow_errno);
+
+	/* ENOMEM verifying */
+	errno		     = 0;
+	void * renomem	     = jrealloc(NULL, JALLOC_MAXBLKSZ + 1);
+	int    renomem_errno = errno;
+
+	errno		    = 0;
+	void * jnomem	    = jalloc(JALLOC_MAXBLKSZ + 1);
+	int    jnomem_errno = errno;
+
+	ASSERT_EQ(renomem, NULL);
+	ASSERT_EQ(jnomem, NULL);
+	ASSERT_EQ(jnomem_errno, renomem_errno);
+
+	/* successful allocation verifying */
+	void * rep = jrealloc(NULL, TESTSZ);
+	void * jp  = jalloc(TESTSZ);
+
+	ASSERT_NEQm(rep, NULL, "jrealloc(NULL, sz) failed");
+	ASSERT_NEQm(jp, NULL, "jalloc failed");
+
+	/* alignment verifying */
+	ASSERT_EQ((uintptr_t)rep % JALLOC_ALIGN, (uintptr_t)jp % JALLOC_ALIGN);
+
+	/* equal block order verifying */
+	uint8_t reorder = JALLOC_GET_ORDER(JALLOC_BLKHDR(rep));
+	uint8_t jorder	= JALLOC_GET_ORDER(JALLOC_BLKHDR(jp));
+	ASSERT_EQ(reorder, jorder);
+
+	jfree(rep);
+	jfree(jp);
+
+	PASS();
+}
+
+TEST
+jrealloc_verify_jfree(void)
+{
+	void * p1 = jalloc(48);
+	ASSERT_NEQm(p1, NULL, "jalloc failed");
+	void * hdr1 = JALLOC_BLKHDR(p1);
+	jfree(p1);
+
+	void * p2 = jalloc(48);
+	ASSERT_NEQm(p2, NULL, "jalloc failed");
+	void * hdr2 = JALLOC_BLKHDR(p2);
+	ASSERT_EQ(jrealloc(p2, 0), NULL);
+
+	ASSERT_EQ(JALLOC_GET_FREE(hdr1), JALLOC_GET_FREE(hdr2));
+
+	void * p3 = jalloc(48);
+
+	/* p3 will get the same address as p2 and p1 */
+	ASSERT_EQ(p3, p2);
+	ASSERT_EQ(p3, p1);
+
+	jfree(p3);
+
+	PASS();
+}
+
+TEST
+jrealloc_verify_reduce(void)
+{
+	size_t const OLDSZ = 112;
+	size_t const NEWSZ = 16;
+
+	uint8_t * ptr = (uint8_t *)jalloc(OLDSZ);
+	ASSERT_NEQm((void *)ptr, NULL, "jalloc failed");
+	uint8_t oldorder = JALLOC_GET_ORDER(JALLOC_BLKHDR(ptr));
+
+	for (size_t i = 0; i < NEWSZ; i++) ptr[i] = (uint8_t)i;
+
+	uint8_t * reptr = (uint8_t *)jrealloc(ptr, NEWSZ);
+	ASSERT_NEQm((void *)reptr, NULL, "realloc failed");
+	uint8_t neworder = JALLOC_GET_ORDER(JALLOC_BLKHDR(reptr));
+
+	ASSERT_EQ(ptr, reptr); /* due to buddy logic, adresses will be the same */
+	ASSERT(
+	    memcmp(ptr, reptr, NEWSZ) == 0); /* everything past NEWSZ will be lost, and i don't care about UAF here */
+	ASSERT_LT(neworder, oldorder);
+
+	jfree(reptr);
+
+	PASS();
+}
+
+TEST
+jrealloc_verify_same_order(void)
+{
+	size_t const OLDSZ = 112;
+	size_t const NEWSZ = 96;
+
+	uint8_t * ptr = (uint8_t *)jalloc(OLDSZ);
+	ASSERT_NEQm((void *)ptr, NULL, "jalloc failed");
+	uint8_t oldorder = JALLOC_GET_ORDER(JALLOC_BLKHDR(ptr));
+
+	for (size_t i = 0; i < NEWSZ; i++) ptr[i] = (uint8_t)i;
+
+	uint8_t * reptr = (uint8_t *)jrealloc(ptr, NEWSZ);
+	ASSERT_NEQm((void *)reptr, NULL, "realloc failed");
+	uint8_t neworder = JALLOC_GET_ORDER(JALLOC_BLKHDR(reptr));
+
+	ASSERT_EQ(ptr, reptr); /* adresses will be the same, because realloc does nothing in this case */
+	ASSERT(memcmp(ptr, reptr, NEWSZ) == 0); /* don't care about UAF */
+	ASSERT_EQ(neworder, oldorder);
+
+	jfree(reptr);
+
+	PASS();
+}
+
+TEST
+jrealloc_verify_expand(void)
+{
+	size_t const OLDSZ = 48;
+	size_t const NEWSZ = 112;
+
+	uint8_t * ptr = (uint8_t *)jalloc(OLDSZ);
+	ASSERT_NEQm((void *)ptr, NULL, "jalloc failed");
+	uint8_t oldorder = JALLOC_GET_ORDER(JALLOC_BLKHDR(ptr));
+
+	for (size_t i = 0; i < OLDSZ; i++) ptr[i] = (uint8_t)i;
+
+	uint8_t * reptr = (uint8_t *)jrealloc(ptr, NEWSZ);
+	ASSERT_NEQm((void *)reptr, NULL, "realloc failed");
+	uint8_t neworder = JALLOC_GET_ORDER(JALLOC_BLKHDR(reptr));
+
+	for (size_t i = 0; i < OLDSZ; i++) ASSERT_EQ(reptr[i], (uint8_t)i);
+	ASSERT_GT(neworder, oldorder);
+
+	jfree(reptr);
+
+	PASS();
+}
+
+static void
+jrealloc_verify(void)
+{
+	RUN_TEST(jrealloc_verify_jalloc);
+	RUN_TEST(jrealloc_verify_jfree);
+	RUN_TEST(jrealloc_verify_reduce);
+	RUN_TEST(jrealloc_verify_same_order);
+	RUN_TEST(jrealloc_verify_expand);
+}
+
+TEST
 jfree_verify_null(void)
 {
 	jfree(NULL);
@@ -184,5 +404,7 @@ jfree_verify(void)
 SUITE(jalloc_pub)
 {
 	jalloc_verify();
+	jcalloc_verify();
+	jrealloc_verify();
 	jfree_verify();
 }
