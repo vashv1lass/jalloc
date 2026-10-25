@@ -17,9 +17,9 @@
 /**
  * @defgroup layout The allocator layout config
  * @internal
- *
- * @{
  */
+
+/** @{ */
 
 /* 1 byte header and maxalign bytes padding (crying) */
 #define JALLOC_BLKHDRSZ JALLOC_ALIGNUP(sizeof(uint8_t), JALLOC_ALIGN) /**< The size of the block header */
@@ -48,15 +48,16 @@
 
 /**
  * @defgroup block_header_struct The block header structure
+ * @internal
  *
  * @brief The block header size is 1 byte and the other bytes are the alignment padding.
  * High nibble is the relative order (e.g. 2^JALLOC_MINORDER is the order 0, 2^(JALLOC_MINORDER + 1) is the order 1,
  * etc.)
  * 3 next bits are unused.
  * LSB of the header is the free bit (if the bit is set, then the block is free).
- *
- * @{
  */
+
+/** @{ */
 
 /**
  * @brief Get the absolute order from the header.
@@ -87,8 +88,6 @@
  * @param order Absolute order of a block.
  * @param free The free bit value of a block.
  *
- * @return None.
- *
  * @note Function-like macro.
  */
 #define JALLOC_SET_BLKHDR(blkhdr, order, free)                                                                         \
@@ -98,13 +97,14 @@
 
 /**
  * @defgroup free_block_struct The free block structure.
+ * @internal
  *
  * @brief The free block payload consists of two pointers.
  * The first word is the pointer to the previous free block in the list.
  * The second word is the pointer to the next free block in the list.
- *
- * @{
  */
+
+/** @{ */
 
 /**
  * @brief Get the previous free block in the free list.
@@ -132,4 +132,4 @@
 
 /** @} */
 
-#endif /* JALLOC_CFG_LAYOUT_H_ */
+#endif /* !JALLOC_CFG_LAYOUT_H_ */

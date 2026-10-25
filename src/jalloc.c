@@ -18,6 +18,8 @@
 
 #include <errno.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 void *
 jalloc(size_t sz)
@@ -67,6 +69,11 @@ jfree(void * ptr)
 
 	void *	blkhdr = JALLOC_BLKHDR(ptr);
 	uint8_t order  = JALLOC_GET_ORDER(blkhdr);
+
+	if (JALLOC_GET_FREE(blkhdr) == 0x01) {
+		fprintf(stderr, "jalloc error (FATAL): double free detected at address %p!\n", ptr);
+		abort();
+	}
 
 	JALLOC_SET_BLKHDR(blkhdr, order, 0x01);
 	void * finalhdr = jcoalesce(blkhdr);

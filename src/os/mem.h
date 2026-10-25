@@ -17,16 +17,17 @@
 /**
  * @defgroup mem OS/Allocator interaction interface
  * @internal
- *
- * @{
  */
+
+/** @{ */
 
 /**
  * @brief Requests memory from the OS.
  *
- * @param sz bytes count to request, must be a multiplier of sysconf(_SC_PAGESIZE).
+ * @param sz bytes count to request (must be non-zero).
  *
- * @return Pointer to the beginning of the requested memory aligned by JALLOC_MAXBLKSZ on success.
+ * @return Pointer to the beginning of the requested memory aligned by JALLOC_MAXBLKSZ and sysconf(_SC_PAGESIZE) on
+ * success.
  * @return NULL on error (errno is set).
  */
 void *
@@ -34,4 +35,4 @@ josmemrequest(size_t sz);
 
 /** @} */
 
-#endif /* JALLOC_OS_MEM_H_ */
+#endif /* !JALLOC_OS_MEM_H_ */

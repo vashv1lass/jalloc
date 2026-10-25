@@ -18,9 +18,9 @@
 /**
  * @defgroup buddy Buddy system related algorithms.
  * @internal
- *
- * @{
  */
+
+/** @{ */
 
 /**
  * @brief Successively splits the block in half until the desired size is reached.
@@ -28,8 +28,6 @@
  * @param blkp Pointer to the block to split.
  * @param factorder Absolute order of a \p blkp unsplit block (<= JALLOC_MAXORDER).
  * @param targorder Order of a \p blkp block to reach (<= JALLOC_MAXORDER, >= \p targorder).
- *
- * @return None.
  *
  * @note When the block is split, the rhs block (a.k.a. "buddy") is marked as free and the lhs block is split again.
  */
@@ -48,4 +46,4 @@ jcoalesce(void * blkhdr);
 
 /** @} */
 
-#endif /* JALLOC_LOGIC_BUDDY_H_ */
+#endif /* !JALLOC_LOGIC_BUDDY_H_ */
