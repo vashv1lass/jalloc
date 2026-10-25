@@ -4,3 +4,7 @@ compile_commands.json
 # Build artifacts
 build
 libjalloc.a
+libjalloc.so
+
+# Doxygen artifacts
+docs
