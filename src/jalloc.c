@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 void *
 jalloc(size_t sz)
@@ -60,6 +61,67 @@ jalloc(size_t sz)
 	JALLOC_SET_BLKHDR(JALLOC_BLKHDR(blkp), targorder, 0x00);
 
 	return blkp;
+}
+
+void *
+jcalloc(size_t nmemb, size_t sz)
+{
+	if (nmemb == 0) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	if (sz > SIZE_MAX / nmemb) {
+		errno = EOVERFLOW;
+		return NULL;
+	}
+
+	size_t totalsz = nmemb * sz;
+	void * ptr     = jalloc(totalsz);
+	if (ptr != NULL) memset(ptr, 0, totalsz);
+
+	return ptr;
+}
+
+void *
+jrealloc(void * ptr, size_t sz)
+{
+	if (ptr == NULL) return jalloc(sz);
+	if (sz == 0) {
+		jfree(ptr);
+		return NULL;
+	}
+
+	if (sz > SIZE_MAX - JALLOC_BLKHDRSZ) {
+		errno = EOVERFLOW;
+		return NULL;
+	}
+
+	void *	blkhdr	 = JALLOC_BLKHDR(ptr);
+	uint8_t oldorder = JALLOC_GET_ORDER(blkhdr);
+	size_t	oldcap	 = (1 << oldorder) - JALLOC_BLKHDRSZ; /* bytes count to copy if necessary */
+
+	uint8_t reqorder = jblkorder(sz + JALLOC_BLKHDRSZ);
+	if (reqorder > JALLOC_MAXORDER) {
+		errno = ENOMEM;
+		return NULL;
+	}
+
+	/* split to avoid internal fragmentation */
+	if (reqorder < oldorder) {
+		jsplit(ptr, oldorder, reqorder);
+		JALLOC_SET_BLKHDR(blkhdr, reqorder, 0x00);
+		return ptr;
+	}
+
+	/* do nothing */
+	if (reqorder == oldorder) return ptr;
+
+	/* allocate new, copy, free old, return */
+	void * newptr = jalloc(sz);
+	if (newptr != NULL) memcpy(newptr, ptr, oldcap);
+	jfree(ptr);
+	return newptr;
 }
 
 void

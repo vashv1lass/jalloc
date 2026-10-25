@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026, Maksim Vashkevich. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 #include "logic/testbuddy.h"
 #include "logic/testsegr.h"
 #include "os/testmem.h"
