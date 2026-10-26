@@ -34,12 +34,17 @@ josmemrequest_verify_einval(void)
 TEST
 josmemrequest_verify_memalign_p(size_t memsz)
 {
+	long pagesz_conf = sysconf(_SC_PAGESIZE);
+	ASSERT_NEQm("sysconf(_SC_PAGESIZE) failed", pagesz_conf, -1);
+	size_t pagesz = (size_t)pagesz_conf;
+
 	void * mem = josmemrequest(memsz);
 
 	ASSERT_EQ((uintptr_t)mem % JALLOC_MAXBLKSZ, 0);
-	ASSERT_EQ((uintptr_t)mem % sysconf(_SC_PAGESIZE), 0);
+	ASSERT_EQ((uintptr_t)mem % pagesz, 0);
 
 	if (munmap(mem, memsz) == -1) FAILm("munmap failed");
+
 	PASS();
 }
 

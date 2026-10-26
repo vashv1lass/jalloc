@@ -119,8 +119,11 @@ jrealloc(void * ptr, size_t sz)
 
 	/* allocate new, copy, free old, return */
 	void * newptr = jalloc(sz);
-	if (newptr != NULL) memcpy(newptr, ptr, oldcap);
+	if (newptr == NULL) return NULL;
+
+	memcpy(newptr, ptr, oldcap);
 	jfree(ptr);
+
 	return newptr;
 }
 

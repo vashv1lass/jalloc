@@ -32,8 +32,11 @@ josmemrequest(size_t sz)
 		return NULL;
 	}
 
-	size_t const PAGESZ = sysconf(_SC_PAGESIZE);
-	size_t	     align  = JALLOC_MAXBLKSZ > PAGESZ ? JALLOC_MAXBLKSZ : PAGESZ;
+	long pagesz_conf = sysconf(_SC_PAGESIZE);
+	if (pagesz_conf == -1) return NULL;
+	size_t const PAGESZ = (size_t)pagesz_conf;
+
+	size_t align = JALLOC_MAXBLKSZ > PAGESZ ? JALLOC_MAXBLKSZ : PAGESZ;
 	if (sz > SIZE_MAX - align) {
 		errno = EOVERFLOW;
 		return NULL;
