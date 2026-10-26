@@ -47,9 +47,9 @@ jalloc_verify_alignment(void)
 	void * ptr48   = jalloc(48);
 	void * ptr1024 = jalloc(1024);
 
-	ASSERT_NEQm(ptr1, NULL, "jalloc failed");
-	ASSERT_NEQm(ptr48, NULL, "jalloc failed");
-	ASSERT_NEQm(ptr1024, NULL, "jalloc failed");
+	ASSERT_NEQm("jalloc failed", ptr1, NULL);
+	ASSERT_NEQm("jalloc failed", ptr48, NULL);
+	ASSERT_NEQm("jalloc failed", ptr1024, NULL);
 
 	ASSERT_EQ((uintptr_t)ptr1 % JALLOC_ALIGN, 0);
 	ASSERT_EQ((uintptr_t)ptr48 % JALLOC_ALIGN, 0);
@@ -70,7 +70,7 @@ TEST
 jalloc_verify_persistency(void)
 {
 	uint8_t * i8ptr = (uint8_t *)jalloc(4 * sizeof(uint8_t));
-	ASSERT_NEQm((void *)i8ptr, NULL, "jalloc failed");
+	ASSERT_NEQm("jalloc failed", (void *)i8ptr, NULL);
 
 	*i8ptr	     = 0xDE;
 	*(i8ptr + 1) = 0xAD;
@@ -100,7 +100,7 @@ jalloc_verify_stress(void)
 
 	for (size_t i = 0; i < ALLOCCNT; i++) {
 		ptrs[i] = jalloc(2 * JALLOC_MAXBLKSZ / ALLOCCNT);
-		ASSERT_NEQm(ptrs[i], NULL, "jalloc failed");
+		ASSERT_NEQm("jalloc failed", ptrs[i], NULL);
 	}
 
 	/* trigger the coalescence */
@@ -124,7 +124,7 @@ jalloc_verify_fragmentation(void)
 
 	for (size_t i = 0; i < ALLOCCNT; i++) {
 		ptrs[i] = jalloc(4 * JALLOC_MAXBLKSZ / ALLOCCNT);
-		ASSERT_NEQm(ptrs[i], NULL, "jalloc failed");
+		ASSERT_NEQm("jalloc failed", ptrs[i], NULL);
 	}
 
 	/* the chessboard pattern: free odd blocks (0-indexation) */
@@ -176,7 +176,7 @@ jcalloc_verify_zeroinit(void)
 {
 	size_t nmemb = 112;
 	int *  arr   = (int *)jcalloc(nmemb, sizeof(int));
-	ASSERT_NEQm((void *)arr, NULL, "jcalloc failed");
+	ASSERT_NEQm("jcalloc failed", (void *)arr, NULL);
 
 	for (size_t i = 0; i < nmemb; i++) ASSERT_EQ(arr[i], 0);
 	jfree(arr);
@@ -240,8 +240,8 @@ jrealloc_verify_jalloc(void)
 	void * rep = jrealloc(NULL, TESTSZ);
 	void * jp  = jalloc(TESTSZ);
 
-	ASSERT_NEQm(rep, NULL, "jrealloc(NULL, sz) failed");
-	ASSERT_NEQm(jp, NULL, "jalloc failed");
+	ASSERT_NEQm("jrealloc(NULL, sz) failed", rep, NULL);
+	ASSERT_NEQm("jalloc failed", jp, NULL);
 
 	/* alignment verifying */
 	ASSERT_EQ((uintptr_t)rep % JALLOC_ALIGN, (uintptr_t)jp % JALLOC_ALIGN);
@@ -261,12 +261,12 @@ TEST
 jrealloc_verify_jfree(void)
 {
 	void * p1 = jalloc(48);
-	ASSERT_NEQm(p1, NULL, "jalloc failed");
+	ASSERT_NEQm("jalloc failed", p1, NULL);
 	void * hdr1 = JALLOC_BLKHDR(p1);
 	jfree(p1);
 
 	void * p2 = jalloc(48);
-	ASSERT_NEQm(p2, NULL, "jalloc failed");
+	ASSERT_NEQm("jalloc failed", p2, NULL);
 	void * hdr2 = JALLOC_BLKHDR(p2);
 	ASSERT_EQ(jrealloc(p2, 0), NULL);
 
@@ -290,13 +290,13 @@ jrealloc_verify_reduce(void)
 	size_t const NEWSZ = 16;
 
 	uint8_t * ptr = (uint8_t *)jalloc(OLDSZ);
-	ASSERT_NEQm((void *)ptr, NULL, "jalloc failed");
+	ASSERT_NEQm("jalloc failed", (void *)ptr, NULL);
 	uint8_t oldorder = JALLOC_GET_ORDER(JALLOC_BLKHDR(ptr));
 
 	for (size_t i = 0; i < NEWSZ; i++) ptr[i] = (uint8_t)i;
 
 	uint8_t * reptr = (uint8_t *)jrealloc(ptr, NEWSZ);
-	ASSERT_NEQm((void *)reptr, NULL, "realloc failed");
+	ASSERT_NEQm("jrealloc failed", (void *)reptr, NULL);
 	uint8_t neworder = JALLOC_GET_ORDER(JALLOC_BLKHDR(reptr));
 
 	ASSERT_EQ(ptr, reptr); /* due to buddy logic, adresses will be the same */
@@ -316,13 +316,13 @@ jrealloc_verify_same_order(void)
 	size_t const NEWSZ = 96;
 
 	uint8_t * ptr = (uint8_t *)jalloc(OLDSZ);
-	ASSERT_NEQm((void *)ptr, NULL, "jalloc failed");
+	ASSERT_NEQm("jalloc failed", (void *)ptr, NULL);
 	uint8_t oldorder = JALLOC_GET_ORDER(JALLOC_BLKHDR(ptr));
 
 	for (size_t i = 0; i < NEWSZ; i++) ptr[i] = (uint8_t)i;
 
 	uint8_t * reptr = (uint8_t *)jrealloc(ptr, NEWSZ);
-	ASSERT_NEQm((void *)reptr, NULL, "realloc failed");
+	ASSERT_NEQm("jrealloc failed", (void *)reptr, NULL);
 	uint8_t neworder = JALLOC_GET_ORDER(JALLOC_BLKHDR(reptr));
 
 	ASSERT_EQ(ptr, reptr); /* adresses will be the same, because realloc does nothing in this case */
@@ -341,19 +341,34 @@ jrealloc_verify_expand(void)
 	size_t const NEWSZ = 112;
 
 	uint8_t * ptr = (uint8_t *)jalloc(OLDSZ);
-	ASSERT_NEQm((void *)ptr, NULL, "jalloc failed");
+	ASSERT_NEQm("jalloc failed", (void *)ptr, NULL);
 	uint8_t oldorder = JALLOC_GET_ORDER(JALLOC_BLKHDR(ptr));
 
 	for (size_t i = 0; i < OLDSZ; i++) ptr[i] = (uint8_t)i;
 
 	uint8_t * reptr = (uint8_t *)jrealloc(ptr, NEWSZ);
-	ASSERT_NEQm((void *)reptr, NULL, "realloc failed");
+	ASSERT_NEQm("realloc failed", (void *)reptr, NULL);
 	uint8_t neworder = JALLOC_GET_ORDER(JALLOC_BLKHDR(reptr));
 
 	for (size_t i = 0; i < OLDSZ; i++) ASSERT_EQ(reptr[i], (uint8_t)i);
 	ASSERT_GT(neworder, oldorder);
 
 	jfree(reptr);
+
+	PASS();
+}
+
+TEST
+jrealloc_verify_persistency(void)
+{
+	void * ptr = jalloc(48);
+	ASSERT_NEQm("jalloc failed", ptr, NULL);
+
+	void * newptr = jrealloc(ptr, SIZE_MAX);
+	ASSERT_EQm("unexpected jrealloc behaviour", newptr, NULL);
+
+	/* ptr must stay be valid and point to allocated memory area */
+	ASSERT_EQ(JALLOC_GET_FREE(JALLOC_BLKHDR(ptr)), 0x00);
 
 	PASS();
 }
@@ -366,6 +381,7 @@ jrealloc_verify(void)
 	RUN_TEST(jrealloc_verify_reduce);
 	RUN_TEST(jrealloc_verify_same_order);
 	RUN_TEST(jrealloc_verify_expand);
+	RUN_TEST(jrealloc_verify_persistency);
 }
 
 TEST
@@ -379,13 +395,13 @@ TEST
 jfree_verify_reusability(void)
 {
 	void * p1 = jalloc(64);
-	ASSERT_NEQm(p1, NULL, "jalloc error");
+	ASSERT_NEQm("jalloc failed", p1, NULL);
 	*((int32_t *)p1) = 0xDEADBEEF;
 
 	jfree(p1);
 
 	void * p2 = jalloc(64);
-	ASSERT_NEQm(p2, NULL, "jalloc error");
+	ASSERT_NEQm("jalloc failed", p2, NULL);
 
 	ASSERT_EQ(p1, p2); /* p2 will get the same address as p1 */
 
