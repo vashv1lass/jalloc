@@ -96,7 +96,7 @@ jalloc_verify_stress(void)
 {
 	/* allocate 2 * JALLOC_MAXBLKSZ bytes (total) */
 	size_t const ALLOCCNT = 128;
-	void *	     ptrs[ALLOCCNT];
+	void **	     ptrs = alloca(ALLOCCNT * sizeof(void *)); /* love MSVC very much! */
 
 	for (size_t i = 0; i < ALLOCCNT; i++) {
 		ptrs[i] = jalloc(2 * JALLOC_MAXBLKSZ / ALLOCCNT);
@@ -120,7 +120,7 @@ jalloc_verify_fragmentation(void)
 {
 	/* allocate 4 * JALLOC_MAXBLKSZ bytes (total) */
 	size_t const ALLOCCNT = 256;
-	void *	     ptrs[ALLOCCNT];
+	void **	     ptrs = alloca(ALLOCCNT * sizeof(void *)); /* love MSVC very much! */
 
 	for (size_t i = 0; i < ALLOCCNT; i++) {
 		ptrs[i] = jalloc(4 * JALLOC_MAXBLKSZ / ALLOCCNT);

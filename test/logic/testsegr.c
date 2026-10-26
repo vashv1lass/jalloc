@@ -8,11 +8,11 @@
 #include "cfg/layout.h"
 #include "logic/segregated.h"
 #include "logic/testutils.h"
+#include "os/mem.h"
 
 #include <greatest/greatest.h>
 #include <limits.h>
 #include <math.h>
-#include <sys/mman.h>
 
 #define JALLOC_TEST_MAX(x, y) ((x) > (y) ? (x) : (y))
 
@@ -82,7 +82,8 @@ jmemrequest_verify(void)
 	ASSERT_EQ(sz, JALLOC_CHUNKSZ / JALLOC_MAXBLKSZ);
 
 	/* block structure check */
-	void * curblkp = jfreelist_peek(JALLOC_MAXORDER);
+	void * firstblkp = jfreelist_peek(JALLOC_MAXORDER);
+	void * curblkp = firstblkp;
 	for (size_t i = 0; i < sz; i++) {
 		void * curblkhdr = JALLOC_BLKHDR(curblkp);
 
@@ -91,9 +92,17 @@ jmemrequest_verify(void)
 
 		curblkp = JALLOC_FREELISTNEXT(curblkp);
 
-		/* unmap the block to avoid memory leaks */
-		if (munmap(curblkhdr, JALLOC_MAXBLKSZ) == -1) FAILm("munmap failed");
+		/* posix and windows unmapping is very different */
+#if _POSIX_C_SOURCE >= 200809L
+		/* unmap every block to avoid memory leaks */
+		if (josmemreturn(curblkhdr, JALLOC_MAXBLKSZ) == -1) FAILm("josmemreturn failed");
+#endif /* _POSIX_C_SOURCE >= 200809L */
 	}
+
+#ifdef _WIN32
+	/* free the whole chunk only once from the arbitrary location */
+	if (josmemreturn(firstblkp, 0) == -1) FAILm("josmemreturn failed");
+#endif
 
 	PASS();
 }

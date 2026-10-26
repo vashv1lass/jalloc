@@ -23,7 +23,21 @@
 
 /** @{ */
 
+#if defined(_MSC_VER) && !defined(__clang__)
+
+/* love msvc very much xd */
+typedef union {
+    long long   ll;
+    long double ld;
+    void *       p;
+    void         (*fnp)(void);
+} jalloc_max_align_t;
+
+#define JALLOC_ALIGN (_Alignof(jalloc_max_align_t)) /**< The system-specific alignment. */
+
+#else /* !_MSC_VER || __clang__ */
 #define JALLOC_ALIGN (_Alignof(max_align_t)) /**< The system-specific alignment. */
+#endif /* _MSC_VER && !__clang__ */
 
 /**
  * @brief Aligns the value up to certain alignment parameter.
