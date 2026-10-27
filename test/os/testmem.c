@@ -15,8 +15,12 @@
 TEST
 josmemrequest_verify_eoverflow(void)
 {
+	size_t pagesz = getpagesz();
+	ASSERT_NEQm("getpagesz failed", pagesz, SIZE_MAX);
+	size_t memsz = JALLOC_ALIGNUP(SIZE_MAX - pagesz - 1, pagesz);
+
 	errno = 0;
-	ASSERT_EQ(josmemrequest(SIZE_MAX - JALLOC_MAXBLKSZ + 1), NULL);
+	ASSERT_EQ(josmemrequest(memsz), NULL);
 	ASSERT_EQ(errno, EOVERFLOW);
 
 	PASS();

@@ -12,6 +12,7 @@
 #include "os/mem.h"
 
 #include "cfg/conf.h"
+#include "cfg/compiler.h"
 
 #include <errno.h>
 #include <stddef.h>
@@ -120,14 +121,14 @@ josmemrequest(size_t sz)
 	GetSystemInfo(&sysinfo);
 	size_t const PAGESZ = (size_t)sysinfo.dwPageSize;
 	
-	if (sz % PAGESZ == 0) {
-		errno = EOVERFLOW;
+	if (sz % PAGESZ != 0) {
+		errno = EINVAL;
 		return NULL;
 	}
 
 	size_t align = JALLOC_MAXBLKSZ > PAGESZ ? JALLOC_MAXBLKSZ : PAGESZ;
 	if (sz > SIZE_MAX - align) {
-		errno = EINVAL;
+		errno = EOVERFLOW;
 		return NULL;
 	}
 	size_t totalsz = sz + align;
@@ -163,6 +164,8 @@ josmemrequest(size_t sz)
 int
 josmemreturn(void * ptr, size_t sz)
 {
+	JALLOC_ARGIGNORE(sz);
+
 	if (ptr == NULL) {
 		errno = EINVAL;
 		return -1;
