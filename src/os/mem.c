@@ -12,7 +12,6 @@
 #include "os/mem.h"
 
 #include "cfg/conf.h"
-#include "cfg/compiler.h"
 
 #include <errno.h>
 #include <stddef.h>
@@ -107,6 +106,8 @@ josmemreturn(void * ptr, size_t sz)
 
 #elif defined(_WIN32) /* && _POSIX_C_SOURCE < 200809L */
 
+#include "cfg/compiler.h"
+
 #include <windows.h>
 
 void *
@@ -120,7 +121,7 @@ josmemrequest(size_t sz)
 	SYSTEM_INFO sysinfo;
 	GetSystemInfo(&sysinfo);
 	size_t const PAGESZ = (size_t)sysinfo.dwPageSize;
-	
+
 	if (sz % PAGESZ != 0) {
 		errno = EINVAL;
 		return NULL;
@@ -150,7 +151,6 @@ josmemrequest(size_t sz)
 
 	uintptr_t aligned_base_addr = JALLOC_ALIGNUP(raw_base_addr, align);
 
-
 	if (VirtualAlloc((void *)aligned_base_addr, sz, MEM_COMMIT, PAGE_READWRITE) == NULL) {
 		VirtualFree(raw, 0, MEM_RELEASE);
 		errno = ENOMEM;
@@ -174,7 +174,7 @@ josmemreturn(void * ptr, size_t sz)
 	MEMORY_BASIC_INFORMATION mbi;
 	if (VirtualQuery(ptr, &mbi, sizeof(mbi)) == 0) {
 		/* this code is likely dead, so it's defensive programming */
-		errno = EINVAL; 
+		errno = EINVAL;
 		return -1;
 	}
 
