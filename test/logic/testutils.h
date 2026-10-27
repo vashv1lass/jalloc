@@ -13,5 +13,4 @@
 size_t
 jfreelistsz(uint8_t order);
 
-
 #endif /* !JALLOC_TEST_LOGIC_TESTUTILS_H_ */

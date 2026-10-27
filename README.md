@@ -3,9 +3,9 @@
 ## What is jalloc?
 
 A lightweight memory allocator written in C using strictly C17 and POSIX.1-2008
-(IEEE 1003.1-2008) standards built around the buddy allocation algorithm.
-It is a small project that implements `malloc`-like dynamic memory allocation
-via custom memory allocation logic and memory mapping.
+(IEEE 1003.1-2008) (or WinAPI/UCRT) standards built around the buddy allocation
+algorithm. It is a small project that implements `malloc`-like dynamic memory
+allocation via custom memory allocation logic and memory mapping.
 
 ## How to use it in my project?
 
@@ -14,8 +14,9 @@ via custom memory allocation logic and memory mapping.
 #### Mandatory
 
 - C17-compatible compiler
-- GNU make
-- Linux/BSD operating system (for now)
+- GNU/MinGW make
+- Windows or POSIX-compatible operating system (some kinds of embedded systems
+like FreeRTOS are not supported)
 
 #### Optional
 
@@ -23,41 +24,47 @@ via custom memory allocation logic and memory mapping.
 
 ### Building
 
-Build the static library (`.a` for now):
+Build the static library:
 
 ```bash
-make
+make # Generates .a (POSIX) static library
+make win # Generates .lib (Windows) static library
 ```
 
-Build the shared library (`.so` for now):
+Build the shared library:
 
 ```bash
-make shared
+make shared # Generates .so (POSIX) shared (i.e. "dynamic") library 
+
+mingw32-make win-shared # Generates .dll (Windows) dynamic link (i.e. "shared")
+                        # library
 ```
 
 Run the test suite:
 
 ```bash
-make test
+make test # Builds and runs tests (POSIX)
+
+mingw32-make win-test # Builds and runs tests (Windows)
 ```
 
 Generate the API documentation:
 
 ```bash
-make docs
+make docs # or mingw32-make docs on Windows
 ```
 
 Remove the build artifacts:
 
 ```bash
-make mrproper
+make mrproper # or mingw32-make mrproper
 ```
 
 ### Including to the project
 
 To include `jalloc` to your project, copy `include/jalloc.h` file to your
-include directory and the generated library file (i.e. `.a` or `.so`) to your
-library directory.
+include directory and the generated library file (i.e. `.a`/`.lib` or
+`.so`/`.dll`) to your library directory.
 
 ### Usage
 
@@ -141,14 +148,13 @@ The allocator is organized into several layers:
 - The allocator uses a fixed range of supported block sizes.
 - A single allocation cannot exceed the configured maximum payload size.
 - No thread-safety.
-- The implementation relies on POSIX memory-mapping facilities.
 
 ## Development vector
 
-- Port allocator to Windows (WinAPI/UCRT).
 - Memory leak detection.
-- Configurability.
 - Benchmarking.
+- Thread-safety.
+- Configurability.
 
 ## License
 

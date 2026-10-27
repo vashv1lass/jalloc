@@ -15,6 +15,7 @@
 TEST
 jalloc_verify_einval(void)
 {
+	errno = 0;
 	ASSERT_EQ(jalloc(0), NULL);
 	ASSERT_EQ(errno, EINVAL);
 
@@ -24,6 +25,7 @@ jalloc_verify_einval(void)
 TEST
 jalloc_verify_eoverflow(void)
 {
+	errno = 0;
 	ASSERT_EQ(jalloc(SIZE_MAX - JALLOC_BLKHDRSZ + 1), NULL);
 	ASSERT_EQ(errno, EOVERFLOW);
 
@@ -33,6 +35,7 @@ jalloc_verify_eoverflow(void)
 TEST
 jalloc_verify_enomem(void)
 {
+	errno = 0;
 	ASSERT_EQ(jalloc(JALLOC_MAXBLKSZ + 1), NULL);
 	ASSERT_EQ(errno, ENOMEM);
 
@@ -96,7 +99,16 @@ jalloc_verify_stress(void)
 {
 	/* allocate 2 * JALLOC_MAXBLKSZ bytes (total) */
 	size_t const ALLOCCNT = 128;
-	void *	     ptrs[ALLOCCNT];
+
+#if defined(_MSC_VER) && !defined(__clang__)
+
+	void **	     ptrs = alloca(ALLOCCNT * sizeof(void *)); /* love MSVC very much! */
+
+#else /* !_MSC_VER || __clang__ */
+
+	void * ptrs[ALLOCCNT];
+
+#endif /* _MSC_VER && !__clang__ */
 
 	for (size_t i = 0; i < ALLOCCNT; i++) {
 		ptrs[i] = jalloc(2 * JALLOC_MAXBLKSZ / ALLOCCNT);
@@ -120,7 +132,16 @@ jalloc_verify_fragmentation(void)
 {
 	/* allocate 4 * JALLOC_MAXBLKSZ bytes (total) */
 	size_t const ALLOCCNT = 256;
-	void *	     ptrs[ALLOCCNT];
+
+#if defined(_MSC_VER) && !defined(__clang__)
+
+	void **	     ptrs = alloca(ALLOCCNT * sizeof(void *)); /* love MSVC very much! */
+
+#else /* !_MSC_VER || __clang__ */
+
+	void * ptrs[ALLOCCNT];
+
+#endif /* _MSC_VER && !__clang__ */
 
 	for (size_t i = 0; i < ALLOCCNT; i++) {
 		ptrs[i] = jalloc(4 * JALLOC_MAXBLKSZ / ALLOCCNT);
@@ -156,6 +177,7 @@ jalloc_verify(void)
 TEST
 jcalloc_verify_einval(void)
 {
+	errno = 0;
 	ASSERT_EQ(jcalloc(0, sizeof(int)), NULL);
 	ASSERT_EQ(errno, EINVAL);
 
@@ -165,6 +187,7 @@ jcalloc_verify_einval(void)
 TEST
 jcalloc_verify_eoverflow(void)
 {
+	errno = 0;
 	ASSERT_EQ(jcalloc(SIZE_MAX / 2, 4), NULL);
 	ASSERT_EQ(errno, EOVERFLOW);
 

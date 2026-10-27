@@ -14,9 +14,12 @@
 #include "cfg/conf.h"
 
 #include <errno.h>
-#include <fcntl.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#if _POSIX_C_SOURCE >= 200809L
+
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -36,6 +39,11 @@ josmemrequest(size_t sz)
 	if (pagesz_conf == -1) return NULL;
 	size_t const PAGESZ = (size_t)pagesz_conf;
 
+	if (sz % PAGESZ != 0) {
+		errno = EINVAL;
+		return NULL;
+	}
+
 	size_t align = JALLOC_MAXBLKSZ > PAGESZ ? JALLOC_MAXBLKSZ : PAGESZ;
 	if (sz > SIZE_MAX - align) {
 		errno = EOVERFLOW;
@@ -53,6 +61,11 @@ josmemrequest(size_t sz)
 
 	uintptr_t raw_base_addr = (uintptr_t)raw;
 	uintptr_t raw_end_addr	= raw_base_addr + totalsz;
+
+	if (raw_base_addr > UINTPTR_MAX - align + 1) {
+		errno = EOVERFLOW;
+		return NULL;
+	}
 
 	uintptr_t aligned_base_addr = JALLOC_ALIGNUP(raw_base_addr, align);
 	uintptr_t aligned_end_addr  = aligned_base_addr + sz;
@@ -79,3 +92,102 @@ josmemrequest(size_t sz)
 
 	return (void *)aligned_base_addr;
 }
+
+int
+josmemreturn(void * ptr, size_t sz)
+{
+	if (ptr == NULL || sz == 0) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	return munmap(ptr, sz);
+}
+
+#elif defined(_WIN32) /* && _POSIX_C_SOURCE < 200809L */
+
+#include "cfg/compiler.h"
+
+#include <windows.h>
+
+void *
+josmemrequest(size_t sz)
+{
+	if (sz == 0) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	SYSTEM_INFO sysinfo;
+	GetSystemInfo(&sysinfo);
+	size_t const PAGESZ = (size_t)sysinfo.dwPageSize;
+
+	if (sz % PAGESZ != 0) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	size_t align = JALLOC_MAXBLKSZ > PAGESZ ? JALLOC_MAXBLKSZ : PAGESZ;
+	if (sz > SIZE_MAX - align) {
+		errno = EOVERFLOW;
+		return NULL;
+	}
+	size_t totalsz = sz + align;
+
+	/* VirtualQuery() + mbi.AllocationBase will restore this pointer */
+	void * raw = VirtualAlloc(NULL, totalsz, MEM_RESERVE, PAGE_NOACCESS);
+	if (raw == NULL) {
+		/* no reason to GetLastError() there */
+		errno = ENOMEM;
+		return NULL;
+	}
+
+	uintptr_t raw_base_addr = (uintptr_t)raw;
+
+	if (raw_base_addr > UINTPTR_MAX - align + 1) {
+		errno = EOVERFLOW;
+		return NULL;
+	}
+
+	uintptr_t aligned_base_addr = JALLOC_ALIGNUP(raw_base_addr, align);
+
+	if (VirtualAlloc((void *)aligned_base_addr, sz, MEM_COMMIT, PAGE_READWRITE) == NULL) {
+		VirtualFree(raw, 0, MEM_RELEASE);
+		errno = ENOMEM;
+		return NULL;
+	}
+
+	/* unfortunately, alignment artifact will remain reserved */
+	return (void *)aligned_base_addr;
+}
+
+int
+josmemreturn(void * ptr, size_t sz)
+{
+	JALLOC_ARGIGNORE(sz);
+
+	if (ptr == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	MEMORY_BASIC_INFORMATION mbi;
+	if (VirtualQuery(ptr, &mbi, sizeof(mbi)) == 0) {
+		/* this code is likely dead, so it's defensive programming */
+		errno = EINVAL;
+		return -1;
+	}
+
+	if (!VirtualFree(mbi.AllocationBase, 0, MEM_RELEASE)) {
+		errno = EFAULT;
+		return -1;
+	}
+
+	return 0;
+}
+
+#else /* !defined(_WIN32) && _POSIX_C_SOURCE < 200809L */
+
+#error "Unsupported OS or unsupported OS version"
+
+#endif /* _POSIX_C_SOURCE >= 200809L || defined(_WIN32) */
