@@ -3,9 +3,9 @@
 ## What is jalloc?
 
 A lightweight memory allocator written in C using strictly C17 and POSIX.1-2008
-(IEEE 1003.1-2008) (or WinAPI/UCRT) standards built around the buddy allocation algorithm.
-It is a small project that implements `malloc`-like dynamic memory allocation
-via custom memory allocation logic and memory mapping.
+(IEEE 1003.1-2008) (or WinAPI/UCRT) standards built around the buddy allocation
+algorithm. It is a small project that implements `malloc`-like dynamic memory
+allocation via custom memory allocation logic and memory mapping.
 
 ## How to use it in my project?
 
@@ -35,26 +35,29 @@ Build the shared library:
 
 ```bash
 make shared # Generates .so (POSIX) shared (i.e. "dynamic") library 
-make win-shared # Generated .dll (Windows) dynamic link (i.e. "shared") library
+
+mingw32-make win-shared # Generates .dll (Windows) dynamic link (i.e. "shared")
+                        # library
 ```
 
 Run the test suite:
 
 ```bash
 make test # Builds and runs tests (POSIX)
-make win-test # Builds and runs tests (Windows)
+
+mingw32-make win-test # Builds and runs tests (Windows)
 ```
 
 Generate the API documentation:
 
 ```bash
-make docs
+make docs # or mingw32-make docs on Windows
 ```
 
 Remove the build artifacts:
 
 ```bash
-make mrproper
+make mrproper # or mingw32-make mrproper
 ```
 
 ### Including to the project

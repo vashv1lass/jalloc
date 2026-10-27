@@ -9,6 +9,8 @@
 
 #if _POSIX_C_SOURCE >= 200809L
 
+#include <unistd.h>
+
 size_t
 getpagesz(void)
 {

@@ -39,6 +39,11 @@ josmemrequest(size_t sz)
 	if (pagesz_conf == -1) return NULL;
 	size_t const PAGESZ = (size_t)pagesz_conf;
 
+	if (sz % PAGESZ != 0) {
+		errno = EINVAL;
+		return NULL;
+	}
+
 	size_t align = JALLOC_MAXBLKSZ > PAGESZ ? JALLOC_MAXBLKSZ : PAGESZ;
 	if (sz > SIZE_MAX - align) {
 		errno = EOVERFLOW;
@@ -56,6 +61,11 @@ josmemrequest(size_t sz)
 
 	uintptr_t raw_base_addr = (uintptr_t)raw;
 	uintptr_t raw_end_addr	= raw_base_addr + totalsz;
+
+	if (raw_base_addr > UINTPTR_MAX - align + 1) {
+		errno = EOVERFLOW;
+		return NULL;
+	}
 
 	uintptr_t aligned_base_addr = JALLOC_ALIGNUP(raw_base_addr, align);
 	uintptr_t aligned_end_addr  = aligned_base_addr + sz;
@@ -109,10 +119,15 @@ josmemrequest(size_t sz)
 	SYSTEM_INFO sysinfo;
 	GetSystemInfo(&sysinfo);
 	size_t const PAGESZ = (size_t)sysinfo.dwPageSize;
+	
+	if (sz % PAGESZ == 0) {
+		errno = EOVERFLOW;
+		return NULL;
+	}
 
 	size_t align = JALLOC_MAXBLKSZ > PAGESZ ? JALLOC_MAXBLKSZ : PAGESZ;
 	if (sz > SIZE_MAX - align) {
-		errno = EOVERFLOW;
+		errno = EINVAL;
 		return NULL;
 	}
 	size_t totalsz = sz + align;
@@ -126,7 +141,14 @@ josmemrequest(size_t sz)
 	}
 
 	uintptr_t raw_base_addr = (uintptr_t)raw;
+
+	if (raw_base_addr > UINTPTR_MAX - align + 1) {
+		errno = EOVERFLOW;
+		return NULL;
+	}
+
 	uintptr_t aligned_base_addr = JALLOC_ALIGNUP(raw_base_addr, align);
+
 
 	if (VirtualAlloc((void *)aligned_base_addr, sz, MEM_COMMIT, PAGE_READWRITE) == NULL) {
 		VirtualFree(raw, 0, MEM_RELEASE);

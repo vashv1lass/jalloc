@@ -24,7 +24,7 @@
 /**
  * @brief Requests memory from the OS.
  *
- * @param sz bytes count to request (must be non-zero).
+ * @param sz bytes count to request (must be non-zero and aligned by the system page size).
  *
  * @return Pointer to the beginning of the requested memory aligned by JALLOC_MAXBLKSZ and the page size on
  * success.

@@ -15,6 +15,7 @@
 TEST
 josmemrequest_verify_eoverflow(void)
 {
+	errno = 0;
 	ASSERT_EQ(josmemrequest(SIZE_MAX - JALLOC_MAXBLKSZ + 1), NULL);
 	ASSERT_EQ(errno, EOVERFLOW);
 
@@ -24,7 +25,15 @@ josmemrequest_verify_eoverflow(void)
 TEST
 josmemrequest_verify_einval(void)
 {
+	errno = 0;
 	ASSERT_EQ(josmemrequest(0), NULL);
+	ASSERT_EQ(errno, EINVAL);
+
+	size_t pagesz = getpagesz();
+	ASSERT_NEQm("getpagesz failed", pagesz, SIZE_MAX);
+
+	errno = 0;
+	ASSERT_EQ(josmemrequest(pagesz - 1), NULL);
 	ASSERT_EQ(errno, EINVAL);
 
 	PASS();
@@ -51,26 +60,17 @@ josmemrequest_verify_memalign(void)
 {
 	size_t pagesz = getpagesz();
 
-	/* little size test */
-	RUN_TESTp(josmemrequest_verify_memalign_p, 1);
-
 	/* page size test */
 	if (pagesz != SIZE_MAX) {
 		/* can't assert page size there (its not a test), so i just do that */
-		RUN_TESTp(josmemrequest_verify_memalign_p, pagesz - 1);
 		RUN_TESTp(josmemrequest_verify_memalign_p, pagesz);
-		RUN_TESTp(josmemrequest_verify_memalign_p, pagesz + 1);
 	}
 
-	/* maximum block size test */
-	RUN_TESTp(josmemrequest_verify_memalign_p, JALLOC_MAXBLKSZ - 1);
+	/* maximum block size test (assumes that JALLOC_MAXBLKSZ % pagesz == 0) */
 	RUN_TESTp(josmemrequest_verify_memalign_p, JALLOC_MAXBLKSZ);
-	RUN_TESTp(josmemrequest_verify_memalign_p, JALLOC_MAXBLKSZ + 1);
 
 	/* chunk size test (main use case) */
-	RUN_TESTp(josmemrequest_verify_memalign_p, JALLOC_CHUNKSZ - 1);
 	RUN_TESTp(josmemrequest_verify_memalign_p, JALLOC_CHUNKSZ);
-	RUN_TESTp(josmemrequest_verify_memalign_p, JALLOC_CHUNKSZ + 1);
 
 	/* extreme size is environment-specific, so it wouldn't be tested */
 }
