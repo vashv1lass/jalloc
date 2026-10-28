@@ -13,10 +13,12 @@ allocation via custom memory allocation logic and memory mapping.
 
 #### Mandatory
 
-- C17-compatible compiler
+- C17-compatible compiler that supports `uintptr_t`
+- Flat memory model
 - GNU/MinGW make
 - Windows or POSIX-compatible operating system (some kinds of embedded systems
-like FreeRTOS are not supported)
+like FreeRTOS are not supported). Also system must have page size, that is
+power of 2.
 
 #### Optional
 
@@ -95,6 +97,7 @@ main(void)
      */
     if (buf == NULL) {
         perror("jalloc error :(");
+        return 1;
     }
 
     memcpy(

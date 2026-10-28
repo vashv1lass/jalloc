@@ -16,6 +16,7 @@
 #include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #if _POSIX_C_SOURCE >= 200809L
 
@@ -39,7 +40,8 @@ josmemrequest(size_t sz)
 	if (pagesz_conf == -1) return NULL;
 	size_t const PAGESZ = (size_t)pagesz_conf;
 
-	if (sz % PAGESZ != 0) {
+	/* 99.9% that page size is the power of 2 */
+	if (sz % PAGESZ != 0 || (PAGESZ & (PAGESZ - 1)) != 0) {
 		errno = EINVAL;
 		return NULL;
 	}
@@ -51,11 +53,42 @@ josmemrequest(size_t sz)
 	}
 	size_t totalsz = sz + align;
 
-	int anonymous_fd = open("/dev/zero", O_RDWR);
-	if (anonymous_fd == -1) return NULL;
+#if defined(MAP_ANONYMOUS)
 
-	void * raw = mmap(NULL, totalsz, PROT_READ | PROT_WRITE, MAP_PRIVATE, anonymous_fd, 0);
-	close(anonymous_fd); /* won't set errno (/dev/zero close is safe) */
+	void * raw = mmap(NULL, totalsz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+#elif defined(MAP_ANON) /* && !defined(MAP_ANONYMOUS) */
+
+	void * raw = mmap(NULL, totalsz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+
+#else /* !MAP_ANONYMOUS && !MAP_ANON */
+
+	/* IEEE 1003.1-2008 */
+	char	      shmname[64];
+	static size_t shmcnt = 0;
+
+	int shmname_sz = snprintf(shmname, sizeof(shmname), "/%d-josmemreq-%zu-%zu", (int)getpid(), totalsz, shmcnt++);
+	if (shmname_sz < 0 || shmname_sz >= (int)sizeof(shmname)) {
+		/* this code is likely dead */
+		errno = EINVAL;
+		return NULL;
+	}
+
+	int shmfd = shm_open(shmname, O_RDWR | O_CREAT | O_EXCL, 0600);
+	if (shmfd == -1) return NULL;
+
+	shm_unlink(shmname);
+
+	if (ftruncate(shmfd, (off_t)totalsz) == -1) {
+		close(shmfd);
+		return NULL;
+	}
+
+	void * raw = mmap(NULL, totalsz, PROT_READ | PROT_WRITE, MAP_PRIVATE, shmfd, 0);
+
+	close(shmfd);
+
+#endif /* MAP_ANONYMOUS */
 
 	if (raw == MAP_FAILED) return NULL;
 

@@ -37,6 +37,8 @@ void *
 jcoalesce(void * blkhdr)
 {
 	for (uint8_t order = JALLOC_GET_ORDER(blkhdr); order < JALLOC_MAXORDER; order++) {
+		/* flat memory model is required */
+
 		void * buddyhdr = (void *)((uintptr_t)blkhdr ^ (1 << order));
 		if (!JALLOC_GET_FREE(buddyhdr) || JALLOC_GET_ORDER(buddyhdr) != order) break;
 
