@@ -13,7 +13,7 @@
 #include <greatest/greatest.h>
 
 #define JALLOC_MIDORDER ((JALLOC_MAXORDER + JALLOC_MINORDER) / 2)
-#define JALLOC_MIDBLKSZ (1 << JALLOC_MIDORDER)
+#define JALLOC_MIDBLKSZ ((size_t)1 << JALLOC_MIDORDER)
 
 TEST
 jsplit_verify(void)
@@ -32,7 +32,7 @@ jsplit_verify(void)
 	for (uint8_t i = JALLOC_MINORDER; i < JALLOC_MIDORDER; i++) {
 		ASSERT_EQ(jfreelistsz(i), 1);
 
-		void * expectedrhs = (void *)((jalloc_byte_t *)blkp + ((ptrdiff_t)1 << i));
+		void * expectedrhs = (void *)((jalloc_byte_t *)blkp + ((size_t)1 << i));
 		ASSERT_EQ(jfreelist_peek(i), expectedrhs);
 
 		void * rhshdr = JALLOC_BLKHDR(expectedrhs);

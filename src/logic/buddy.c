@@ -24,7 +24,7 @@ jsplit(void * blkp, uint8_t factorder, uint8_t targorder)
 	uint8_t wasfree = JALLOC_GET_FREE(JALLOC_BLKHDR(blkp));
 
 	while (factorder-- > targorder) {
-		void * rhsbuddy = (void *)((jalloc_byte_t *)blkp + ((ptrdiff_t)1 << factorder));
+		void * rhsbuddy = (void *)((jalloc_byte_t *)blkp + (ptrdiff_t)((size_t)1 << factorder));
 
 		JALLOC_SET_BLKHDR(JALLOC_BLKHDR(rhsbuddy), factorder, 0x01);
 		jfreelist_pushblk(rhsbuddy);
@@ -39,7 +39,7 @@ jcoalesce(void * blkhdr)
 	for (uint8_t order = JALLOC_GET_ORDER(blkhdr); order < JALLOC_MAXORDER; order++) {
 		/* flat memory model is required */
 
-		void * buddyhdr = (void *)((uintptr_t)blkhdr ^ (1 << order));
+		void * buddyhdr = (void *)((uintptr_t)blkhdr ^ ((size_t)1 << order));
 		if (!JALLOC_GET_FREE(buddyhdr) || JALLOC_GET_ORDER(buddyhdr) != order) break;
 
 		jfreelist_removeblk(JALLOC_PAYLOAD(buddyhdr));

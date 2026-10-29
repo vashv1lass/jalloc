@@ -41,7 +41,7 @@ josmemrequest(size_t sz)
 	size_t const PAGESZ = (size_t)pagesz_conf;
 
 	/* 99.9% that page size is the power of 2 */
-	if (sz % PAGESZ != 0 || (PAGESZ & (PAGESZ - 1)) != 0) {
+	if (sz % PAGESZ != 0 || (PAGESZ & (PAGESZ - 1)) != 0 || JALLOC_CHUNKSZ % PAGESZ != 0) {
 		errno = EINVAL;
 		return NULL;
 	}
@@ -76,8 +76,7 @@ josmemrequest(size_t sz)
 
 	int shmfd = shm_open(shmname, O_RDWR | O_CREAT | O_EXCL, 0600);
 	if (shmfd == -1) return NULL;
-
-	shm_unlink(shmname);
+	if (shm_unlink(shmname) == -1) return NULL;
 
 	if (ftruncate(shmfd, (off_t)totalsz) == -1) {
 		close(shmfd);
@@ -85,10 +84,9 @@ josmemrequest(size_t sz)
 	}
 
 	void * raw = mmap(NULL, totalsz, PROT_READ | PROT_WRITE, MAP_PRIVATE, shmfd, 0);
+	if (close(shmfd) == -1) return NULL;
 
-	close(shmfd);
-
-#endif /* MAP_ANONYMOUS */
+#endif /* !MAP_ANONYMOUS && !MAP_ANON */
 
 	if (raw == MAP_FAILED) return NULL;
 

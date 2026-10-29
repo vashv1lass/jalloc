@@ -28,7 +28,7 @@
  * @return Pointer to the beginning of the allocated memory area on success.
  * @return NULL on error (errno is set).
  *
- * @note Function can allocate at most JALLOC_MAXBLKSZ - JALLOC_BLKHDRSZ (see src/cfg/conf.h) per one call.
+ * @note Function can allocate at most 1 MiB per one call in default configuration (see src/cfg/conf.h).
  */
 void *
 jalloc(size_t sz);
@@ -56,7 +56,7 @@ jcalloc(size_t nmemb, size_t sz);
  *
  * @note jrealloc(NULL, sz) call is the equivalent of jalloc(sz) call (see jalloc docs).
  * @note jrealloc(ptr, 0) call is equivalent of jfree(ptr) call (see jfree docs).
- * @note Function is able to allocate at most JALLOC_MAXBLKSZ - JALLOC_BLKHDRSZ per call.
+ * @note Function is able to allocate at most 1 MiB per call in default configuration.
  */
 void *
 jrealloc(void * ptr, size_t sz);

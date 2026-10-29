@@ -24,7 +24,7 @@ ifeq (${PLATFORM},POSIX)
 
 	CC ?= gcc # clang for MacOS (symlink)
 	AR ?= ar
-	ARFLAGS ?= rcs
+	ARFLAGS = rcs
 
 	CPPFLAGS ?= -I${INCLUDE_DIR} -I${SRC_DIR} -D_POSIX_C_SOURCE=200809L
 	CFLAGS ?= -std=c17 -Wall -Wextra -Wpedantic -Werror -fPIC
@@ -170,6 +170,6 @@ DOXYGEN ?= doxygen
 DOXYFILE ?= Doxyfile
 
 docs:
-	${DOXYGEN} ${Doxyfile}
+	${DOXYGEN} ${DOXYFILE}
 
 .PHONY: docs

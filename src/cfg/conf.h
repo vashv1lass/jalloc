@@ -57,15 +57,18 @@ typedef union jalloc_max_align {
 #define JALLOC_MINORDER (5)  /**< Minimal absolute order of a block */
 #define JALLOC_MAXORDER (20) /**< Maximal absolute order of a block */
 
+/* The result of `(size_t)1 << JALLOC_MAXORDER` must be defined */
+_Static_assert(JALLOC_MAXORDER < 8 * sizeof(size_t), "Max order must be less than bits count in size_t");
+
 #define JALLOC_ORDERCNT (JALLOC_MAXORDER - JALLOC_MINORDER + 1) /**< Block order count */
 
 /* Only 4 bits in the block header are used to store the order of the block */
 _Static_assert(1 <= JALLOC_ORDERCNT && JALLOC_ORDERCNT <= 16, "Order count must be between 1 and 16");
 
-#define JALLOC_MINBLKSZ (1 << JALLOC_MINORDER) /**< Minimal block size */
-#define JALLOC_MAXBLKSZ (1 << JALLOC_MAXORDER) /**< Maximal block size */
+#define JALLOC_MINBLKSZ ((size_t)1 << JALLOC_MINORDER) /**< Minimal block size */
+#define JALLOC_MAXBLKSZ ((size_t)1 << JALLOC_MAXORDER) /**< Maximal block size */
 
-#define JALLOC_CHUNKSZ (4 * JALLOC_MAXBLKSZ) /**< Allocation chunk size */
+#define JALLOC_CHUNKSZ (4 * JALLOC_MAXBLKSZ) /**< Allocation chunk size (must be a multiple of system page size) */
 
 /* This assertion is requirement of the block alignment */
 _Static_assert(
