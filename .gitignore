@@ -3,8 +3,15 @@ compile_commands.json
 
 # Build artifacts
 build
+
+# General POSIX build artifacts 
 libjalloc.a
 libjalloc.so
+# MacOS build artifacts
+libjalloc.dylib
+# Windows build artifacts
+jalloc.lib
+jalloc.dll
 
 # Doxygen artifacts
 docs

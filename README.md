@@ -13,67 +13,86 @@ allocation via custom memory allocation logic and memory mapping.
 
 #### Mandatory
 
-- C17-compatible compiler that supports `uintptr_t`
-- Flat memory model
-- GNU/MinGW make
+- C17-compatible compiler that supports `uintptr_t` (your compiler likely supports)
+- Flat memory model (your system likely satisfies this condition)
+- GNU make (or MinGW make)
 - Windows or POSIX-compatible operating system (some kinds of embedded systems
 like FreeRTOS are not supported). Also system must have page size, that is
-power of 2.
+power of 2 (99.9% systems satisfy this condition).
+
+##### Windows
+
+- Make sure Microsoft Visual Studio is installed (project is compiled via MSVC
+cl.exe)
+- You will need to build the project from the Developer Command Prompt
 
 #### Optional
 
-- Doxygen
+- Doxygen (for `make docs`)
+
+### Configuring
+
+Configuring is suckless-like. You are able to configure the allocator in
+`src/cfg/conf.h` file. You can configure:
+- `JALLOC_MINORDER` parameter.
+- `JALLOC_MAXORDER` parameter.
+- `JALLOC_CHUNKSZ` parameter.
+
+Make sure that values of these parameters satisfies the static assertions.
 
 ### Building
 
 Build the static library:
 
 ```bash
-make # Generates .a (POSIX) static library
-make win # Generates .lib (Windows) static library
+make # Generates .a (POSIX) static library in the root of the project
+make PLATFORM=Windows # Generates .lib (Windows) static library in the root of
+                      # the project
 ```
 
 Build the shared library:
 
 ```bash
-make shared # Generates .so (POSIX) shared (i.e. "dynamic") library 
+make shared # Generates .so (Linux/BSD) or .dylib (Darwin) shared (i.e.
+            # "dynamic") library in the root of the project
 
-mingw32-make win-shared # Generates .dll (Windows) dynamic link (i.e. "shared")
-                        # library
+mingw32-make PLATFORM=Windows shared # Generates .dll (Windows) dynamic
+                                     # link (i.e. "shared") library in
+                                     # the root of the project
 ```
 
 Run the test suite:
 
 ```bash
-make test # Builds and runs tests (POSIX)
+make test # Builds .a and runs tests (POSIX)
 
-mingw32-make win-test # Builds and runs tests (Windows)
+mingw32-make PLATFORM=Windows test # Builds .lib and runs tests (Windows)
 ```
 
 Generate the API documentation:
 
 ```bash
-make docs # or mingw32-make docs on Windows
+make docs # or mingw32-make PLATFORM=Windows docs on Windows
 ```
 
 Remove the build artifacts:
 
 ```bash
-make mrproper # or mingw32-make mrproper
+make mrproper # or mingw32-make PLATFORM=Windows mrproper on Windows
 ```
 
 ### Including to the project
 
 To include `jalloc` to your project, copy `include/jalloc.h` file to your
 include directory and the generated library file (i.e. `.a`/`.lib` or
-`.so`/`.dll`) to your library directory.
+`.so`/`dylib`/`.dll`) to your library directory.
 
 ### Usage
 
 Include the copied public header:
 
 ```c
-#include <jalloc.h>
+#include <jalloc.h> // make sure you add include directory (like -Iinclude)
 ```
 
 ### Example
@@ -128,9 +147,9 @@ main(void)
 
 ### Compiling, linking and running
 
-For example, let `jalloc.h` be in `include/` directory, `libjalloc.a` be in
-`lib/` directory, example source code file has the name of `example.c` and the
-project is compiled via `gcc`.
+For example, let the platform be POSIX-compatible, `jalloc.h` be in `include/`
+directory, `libjalloc.a` be in `lib/` directory, example source code file has
+the name of `example.c` and the project is compiled via `gcc`.
 
 ```bash
 gcc -std=c17 -Iinclude example.c lib/libjalloc.a -o example
@@ -151,13 +170,15 @@ The allocator is organized into several layers:
 - The allocator uses a fixed range of supported block sizes.
 - A single allocation cannot exceed the configured maximum payload size.
 - No thread-safety.
+- Allocator does not return memory to OS (not a leak, but bad memory
+utilization)
 
 ## Development vector
 
+- Chunk tracking and returning memory to OS.
 - Memory leak detection.
 - Benchmarking.
 - Thread-safety.
-- Configurability.
 
 ## License
 

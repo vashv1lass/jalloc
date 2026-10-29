@@ -5,24 +5,31 @@ TEST_DIR = test
 TEST_THIRDPARTY_DIR = ${TEST_DIR}/third-party
 DOCS_DIR = docs
 
+SRC = ${SRC_DIR}/jalloc.c \
+		${SRC_DIR}/logic/buddy.c \
+		${SRC_DIR}/logic/segregated.c \
+		${SRC_DIR}/os/mem.c
+
+TEST_SRC = ${TEST_DIR}/run.c \
+		${TEST_DIR}/testjalloc.c \
+		${TEST_DIR}/logic/testbuddy.c \
+		${TEST_DIR}/logic/testsegr.c \
+		${TEST_DIR}/logic/testutils.c \
+		${TEST_DIR}/os/testmem.c \
+		${TEST_DIR}/os/testutils.c
+
 PLATFORM ?= POSIX
 
-CC ?= gcc # clang for MacOS (symlink)
-AR ?= ar
-DOXYGEN ?= doxygen
-
-CPPFLAGS ?= -I${INCLUDE_DIR} -I${SRC_DIR}
-CFLAGS ?= -std=c17 -Wall -Wextra -Wpedantic -Werror
-LDFLAGS ?=
-LDLIBS ?=
-
-ARFLAGS ?= rcs
-
-DOXYFILE ?= Doxyfile
-
 ifeq (${PLATFORM},POSIX)
-	CPPFLAGS += -D_POSIX_C_SOURCE=200809L
-	CFLAGS += -fPIC
+
+	CC ?= gcc # clang for MacOS (symlink)
+	AR ?= ar
+	ARFLAGS ?= rcs
+
+	CPPFLAGS ?= -I${INCLUDE_DIR} -I${SRC_DIR} -D_POSIX_C_SOURCE=200809L
+	CFLAGS ?= -std=c17 -Wall -Wextra -Wpedantic -Werror -fPIC
+	LDFLAGS ?=
+	LDLIBS ?=
 
 	LIB_STATIC = libjalloc.a
 
@@ -34,10 +41,6 @@ ifeq (${PLATFORM},POSIX)
 		LIB_SHARED = libjalloc.so
 	endif
 
-	SRC = ${SRC_DIR}/jalloc.c \
-	      ${SRC_DIR}/logic/buddy.c \
-	      ${SRC_DIR}/logic/segregated.c \
-	      ${SRC_DIR}/os/mem.c
 	OBJ = ${addprefix ${BUILD_DIR}/, ${SRC:.c=.o}}
 
 	TEST_CPPFLAGS = ${CPPFLAGS} -I${TEST_DIR} -I${TEST_THIRDPARTY_DIR} -DJALLOC_UNITTESTING
@@ -48,13 +51,6 @@ ifeq (${PLATFORM},POSIX)
 	TEST_LIB_OBJ = ${addprefix ${BUILD_DIR}/test_lib/, ${SRC:.c=.o}}
 	TEST_LIB_STATIC = ${BUILD_DIR}/libjalloc_test.a
 
-	TEST_SRC = ${TEST_DIR}/run.c \
-		   ${TEST_DIR}/testjalloc.c \
-		   ${TEST_DIR}/logic/testbuddy.c \
-		   ${TEST_DIR}/logic/testsegr.c \
-		   ${TEST_DIR}/logic/testutils.c \
-		   ${TEST_DIR}/os/testmem.c \
-		   ${TEST_DIR}/os/testutils.c
 	TEST_OBJ = ${addprefix ${BUILD_DIR}/, ${TEST_SRC:.c=.o}}
 	TEST_BIN = ${BUILD_DIR}/testjalloc
 
@@ -96,15 +92,84 @@ mrproper:
 
 .PHONY: shared mrproper test
 
-else # ifeq (${PLATFORM},Windows)
-	# TODO: add windows later
+else ifeq (${PLATFORM},Windows)
+
+	# MSVC
+	SHELL = cmd.exe
+	.SHELLFLAGS = /c
+
+	CC = cl
+	AR = lib
+	LD = link
+
+	CPPFLAGS = /I${INCLUDE_DIR} /I${SRC_DIR}
+	CFLAGS = /std:c17 /W4 /WX /nologo
+	LDFLAGS =
+	LDLIBS =
+
+	LIB_STATIC = jalloc.lib
+	LIB_SHARED = jalloc.dll
+	LIB_IMPORT = jalloc.exp
+
+	OBJ = ${addprefix ${BUILD_DIR}/, ${SRC:.c=.obj}}
+
+	# MSVC does not like greatest, so i need to define D_CRT_SECURE_NO_WARNINGS
+	TEST_CPPFLAGS = ${CPPFLAGS} /I${TEST_DIR} /I${TEST_THIRDPARTY_DIR} /DJALLOC_UNITTESTING /D_CRT_SECURE_NO_WARNINGS
+	TEST_CFLAGS = ${CFLAGS}
+
+	TEST_LIB_OBJ = ${addprefix ${BUILD_DIR}/test_lib/, ${SRC:.c=.obj}}
+	TEST_LIB_STATIC = ${BUILD_DIR}\jalloc_test.lib
+
+	TEST_OBJ = ${addprefix ${BUILD_DIR}/, ${TEST_SRC:.c=.obj}}
+	TEST_BIN = ${BUILD_DIR}\testjalloc.exe
+
+${LIB_STATIC}: ${OBJ}
+	if not exist ${subst /,\,${dir $@}} mkdir ${subst /,\,${dir $@}}
+	${AR} /OUT:$@ $^
+
+shared: ${LIB_SHARED}
+
+${LIB_SHARED}: ${OBJ}
+	if not exist ${subst /,\,${dir $@}} mkdir ${subst /,\,${dir $@}}
+	${LD} /DLL /OUT:${LIB_SHARED} /IMPLIB:${BUILD_DIR}/jalloc_shared.lib $^
+
+${BUILD_DIR}/test_lib/%.obj: %.c
+	if not exist ${subst /,\,${dir $@}} mkdir ${subst /,\,${dir $@}}
+	${CC} ${TEST_CPPFLAGS} ${TEST_CFLAGS} /c $< /Fo:$@
+
+${BUILD_DIR}/${TEST_DIR}/%.obj: ${TEST_DIR}/%.c
+	if not exist ${subst /,\,${dir $@}} mkdir ${subst /,\,${dir $@}}
+	${CC} ${TEST_CPPFLAGS} ${TEST_CFLAGS} /c $< /Fo:$@
+
+${BUILD_DIR}/%.obj: %.c
+	if not exist ${subst /,\,${dir $@}} mkdir ${subst /,\,${dir $@}}
+	${CC} ${CPPFLAGS} ${CFLAGS} /c $< /Fo:$@
+
+${TEST_LIB_STATIC}: ${TEST_LIB_OBJ}
+	if not exist ${subst /,\,${dir $@}} mkdir ${subst /,\,${dir $@}}
+	${AR} /OUT:$@ $^
+
+test: ${TEST_BIN}
+	$<
+
+${TEST_BIN}: ${TEST_OBJ} ${TEST_LIB_STATIC}
+	if not exist ${subst /,\,${dir $@}} mkdir ${subst /,\,${dir $@}}
+	${LD} /OUT:$@ $^ ${TEST_LIB_STATIC}
+
+mrproper:
+	if exist ${BUILD_DIR} rmdir /S /Q ${BUILD_DIR}
+	if exist ${LIB_STATIC} del /Q ${LIB_STATIC}
+	if exist ${LIB_SHARED} del /Q ${LIB_SHARED}
+	if exist ${DOCS_DIR} rmdir /S /Q ${DOCS_DIR}
+
+.PHONY: shared mrproper test
+
 endif
 
+DOXYGEN ?= doxygen
+DOXYFILE ?= Doxyfile
+
 docs:
-	@if [ -f "${DOXYFILE}" ]; then \
-		${DOXYGEN} ${DOXYFILE}; \
-	else \
-		echo "${DOXYFILE} not found. Run '${DOXYGEN} -g' to generate a default config."; \
-	fi
+	${DOXYGEN} ${Doxyfile}
 
 .PHONY: docs
