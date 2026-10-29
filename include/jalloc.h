@@ -28,7 +28,7 @@
  * @return Pointer to the beginning of the allocated memory area on success.
  * @return NULL on error (errno is set).
  *
- * @note Function can allocate at most JALLOC_MAXBLKSZ - JALLOC_BLKHDRSZ per one call.
+ * @note Function can allocate at most JALLOC_MAXBLKSZ - JALLOC_BLKHDRSZ (see src/cfg/conf.h) per one call.
  */
 void *
 jalloc(size_t sz);
@@ -37,7 +37,7 @@ jalloc(size_t sz);
  * @brief Allocates certain count of elements of the certain size and initializes memory.
  *
  * @param nmemb Elements count to allocate (non-zero).
- * @param sz Size of each element.
+ * @param sz Size of each element (non-zero).
  *
  * @return Pointer to the first byte of the first allocated element on success.
  * @return NULL on error (errno is set).

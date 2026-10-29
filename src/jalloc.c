@@ -66,7 +66,7 @@ jalloc(size_t sz)
 void *
 jcalloc(size_t nmemb, size_t sz)
 {
-	if (nmemb == 0) {
+	if (nmemb == 0 || sz == 0) {
 		errno = EINVAL;
 		return NULL;
 	}
