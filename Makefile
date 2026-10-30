@@ -107,9 +107,12 @@ else ifeq (${PLATFORM},Windows)
 	LDFLAGS =
 	LDLIBS =
 
+	SHARED_CPPFLAGS = /DJALLOC_BUILD_SHARED
+
 	LIB_STATIC = jalloc.lib
 	LIB_SHARED = jalloc.dll
-	LIB_IMPORT = jalloc.exp
+	LIB_IMPORT = jalloc.lib
+	LIB_EXPORT = jalloc.exp
 
 	OBJ = ${addprefix ${BUILD_DIR}/, ${SRC:.c=.obj}}
 
@@ -129,9 +132,12 @@ ${LIB_STATIC}: ${OBJ}
 
 shared: ${LIB_SHARED}
 
+${LIB_SHARED}: CPPFLAGS += ${SHARED_CPPFLAGS}
+
 ${LIB_SHARED}: ${OBJ}
 	if not exist ${subst /,\,${dir $@}} mkdir ${subst /,\,${dir $@}}
-	${LD} /DLL /OUT:${LIB_SHARED} /IMPLIB:${BUILD_DIR}/jalloc_shared.lib $^
+	${LD} /DLL /OUT:${LIB_SHARED} /IMPLIB:${LIB_IMPORT} $^
+	if exist ${LIB_EXPORT} move /Y ${LIB_EXPORT} ${BUILD_DIR}\${LIB_EXPORT}
 
 ${BUILD_DIR}/test_lib/%.obj: %.c
 	if not exist ${subst /,\,${dir $@}} mkdir ${subst /,\,${dir $@}}
