@@ -103,7 +103,7 @@ jalloc_verify_stress(void)
 
 #if defined(_MSC_VER) && !defined(__clang__)
 
-	void **	     ptrs = _alloca(ALLOCCNT * sizeof(void *)); /* love MSVC very much! */
+	void ** ptrs = _alloca(ALLOCCNT * sizeof(void *)); /* love MSVC very much! */
 
 #else /* !_MSC_VER || __clang__ */
 
@@ -136,7 +136,7 @@ jalloc_verify_fragmentation(void)
 
 #if defined(_MSC_VER) && !defined(__clang__)
 
-	void **	     ptrs = _alloca(ALLOCCNT * sizeof(void *)); /* love MSVC very much! */
+	void ** ptrs = _alloca(ALLOCCNT * sizeof(void *)); /* love MSVC very much! */
 
 #else /* !_MSC_VER || __clang__ */
 

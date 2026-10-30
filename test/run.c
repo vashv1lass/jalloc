@@ -17,7 +17,7 @@ main(int argc, char * argv[])
 {
 	GREATEST_MAIN_BEGIN();
 
-    /* NOTE: some tests assume the default allocator config */
+	/* NOTE: some tests assume the default allocator config */
 
 	RUN_SUITE(josmem);
 	RUN_SUITE(jsegr);

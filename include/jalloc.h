@@ -17,11 +17,11 @@
 #if defined(_MSC_VER)
 
 #if defined(JALLOC_BUILD_SHARED)
-#    define JALLOC_PUBAPI __declspec(dllexport)
+#define JALLOC_PUBAPI __declspec(dllexport)
 #elif defined(JALLOC_DLL) /* && !JALLOC_BUILD_SHARED */
-#    define JALLOC_PUBAPI __declspec(dllimport)
+#define JALLOC_PUBAPI __declspec(dllimport)
 #else /* !JALLOC_BUILD_SHARED && !JALLOC_DLL */
-#    define JALLOC_PUBAPI
+#define JALLOC_PUBAPI
 #endif /* !JALLOC_BUILD_SHARED */
 
 #elif defined(__has_attribute) && __has_attribute(visibility) /* && !_MSC_VER */
