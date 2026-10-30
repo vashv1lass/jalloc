@@ -185,7 +185,7 @@ josmemrequest(size_t sz)
 	GetSystemInfo(&sysinfo);
 	size_t const PAGESZ = (size_t)sysinfo.dwPageSize;
 
-	if (sz % PAGESZ != 0) {
+	if (sz % PAGESZ != 0 || JALLOC_CHUNKSZ % PAGESZ != 0 || (PAGESZ & (PAGESZ - 1)) != 0) {
 		errno = EINVAL;
 		return NULL;
 	}

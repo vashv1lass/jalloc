@@ -55,9 +55,12 @@ typedef union jalloc_max_align {
 #define JALLOC_ALIGNUP(x, align) (((x) + (align) - 1) & ~((align) - 1))
 
 /* CONFIGURABLE */
+/* The following macros must be integer */
 #define JALLOC_MINORDER	 (5)  /**< Minimal absolute order of a block */
 #define JALLOC_MAXORDER	 (20) /**< Maximal absolute order of a block */
 #define JALLOC_CHUNKMULT (4)  /**< Allocation chunk size multiplier (configurable) */
+
+_Static_assert(JALLOC_CHUNKMULT >= 1, "Chunk size multiplier must be positive integer");
 
 /* The result of `(size_t)1 << JALLOC_MINORDER` must be defined */
 _Static_assert(JALLOC_MINORDER > 0, "Min order must be positive");

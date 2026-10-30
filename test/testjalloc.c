@@ -48,7 +48,6 @@ jalloc_verify_enomem(void)
 	PASS();
 }
 
-/* this test assumes JALLOC_MAXBLKSZ >= 1024 + JALLOC_BLKHDRSZ */
 TEST
 jalloc_verify_alignment(void)
 {
@@ -71,10 +70,6 @@ jalloc_verify_alignment(void)
 	PASS();
 }
 
-/*
- * this test assumes JALLOC_MAXBLKSZ > 4 * sizeof(uint8_t) + JALLOC_BLKHDRSZ
- *
- * (it's unlikely to be any other way, just for mathematical certainty) */
 TEST
 jalloc_verify_persistency(void)
 {
