@@ -24,6 +24,11 @@
 /* 1 byte header and maxalign bytes padding (crying) */
 #define JALLOC_BLKHDRSZ JALLOC_ALIGNUP(sizeof(uint8_t), JALLOC_ALIGN) /**< The size of the block header */
 
+/* check if the minimum block is large enough */
+_Static_assert(
+    JALLOC_MINBLKSZ >= JALLOC_BLKHDRSZ + 2 * sizeof(void *),
+    "The minimum block size must be sufficient to accomodate a header and two pointers");
+
 /**
  * @brief Gets the block header pointer from the block payload pointer.
  *

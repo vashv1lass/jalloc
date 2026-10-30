@@ -1,215 +1,188 @@
-# i don't want to waste my time writing makefile, so it was written by GPT-6-Luna.
-# TODO: rewrite it by myself (someday)
+BUILD_DIR = build
+SRC_DIR = src
+INCLUDE_DIR = include
+TEST_DIR = test
+TEST_THIRDPARTY_DIR = ${TEST_DIR}/third-party
+DOCS_DIR = docs
 
-# Select the host API and toolchain with PLATFORM=posix or PLATFORM=windows.
-# The win* targets below are convenient Windows/MinGW-w64 entry points.
-PLATFORM ?= posix
+SRC = ${SRC_DIR}/jalloc.c \
+		${SRC_DIR}/logic/buddy.c \
+		${SRC_DIR}/logic/segregated.c \
+		${SRC_DIR}/os/mem.c
 
-BUILD_ROOT ?= build
-WIN_BUILD_DIR ?= $(BUILD_ROOT)/windows
+TEST_SRC = ${TEST_DIR}/run.c \
+		${TEST_DIR}/testjalloc.c \
+		${TEST_DIR}/logic/testbuddy.c \
+		${TEST_DIR}/logic/testsegr.c \
+		${TEST_DIR}/logic/testutils.c \
+		${TEST_DIR}/os/testmem.c \
+		${TEST_DIR}/os/testutils.c
 
-POSIX_CC ?= cc
-POSIX_AR ?= ar
-WIN_CC ?= x86_64-w64-mingw32-gcc
-WIN_AR ?= ar
+PLATFORM ?= POSIX
 
-ifeq ($(PLATFORM),posix)
-CC = $(POSIX_CC)
-AR = $(POSIX_AR)
+ifeq (${PLATFORM},POSIX)
 
-BUILD_DIR ?= $(BUILD_ROOT)
-STATIC_LIBRARY ?= libjalloc.a
-SHARED_LIBRARY ?= libjalloc.so
-TEST_BINARY ?= $(BUILD_DIR)/test/jalloc-test
-TEST_LIBRARY ?= $(BUILD_DIR)/test/libjalloc.a
+	CC ?= gcc # clang for MacOS (symlink)
+	AR ?= ar
+	ARFLAGS = rcs
 
-PLATFORM_CPPFLAGS = -D_POSIX_C_SOURCE=200809L
-PICFLAGS = -fPIC
-PLATFORM_CFLAGS =
-SHARED_EXPORTS ?= $(BUILD_DIR)/jalloc.map
-SHARED_PLATFORM_FLAGS = -Wl,--version-script=$(SHARED_EXPORTS)
-SHARED_LINKER_INPUTS =
-else ifeq ($(PLATFORM),windows)
-CC = $(WIN_CC)
-AR = $(WIN_AR)
+	CPPFLAGS ?= -I${INCLUDE_DIR} -I${SRC_DIR} -D_POSIX_C_SOURCE=200809L
+	CFLAGS ?= -std=c17 -Wall -Wextra -Wpedantic -Werror -fPIC -fvisibility=hidden
+	LDFLAGS ?=
+	LDLIBS ?=
 
-BUILD_DIR ?= $(WIN_BUILD_DIR)
-STATIC_LIBRARY ?= $(BUILD_DIR)/libjalloc.a
-SHARED_LIBRARY ?= $(BUILD_DIR)/jalloc.dll
-SHARED_IMPORT_LIBRARY ?= $(BUILD_DIR)/libjalloc.dll.a
-TEST_BINARY ?= $(BUILD_DIR)/test/jalloc-test.exe
-TEST_LIBRARY ?= $(BUILD_DIR)/test/libjalloc.a
+	ifeq (${shell uname -s},Linux)
+		LDLIBS += -lrt
+	endif
 
-# Do not define _POSIX_C_SOURCE here: src/os/mem.c uses it to select its
-# POSIX implementation ahead of the _WIN32 implementation.
-PLATFORM_CPPFLAGS =
-PICFLAGS =
-# josmemreturn() deliberately ignores sz on Windows; keep the diagnostic but
-# don't let this intentional unused parameter defeat the otherwise strict build.
-PLATFORM_CFLAGS = -Wno-error=unused-parameter
-SHARED_EXPORTS ?= $(BUILD_DIR)/jalloc.def
-SHARED_PLATFORM_FLAGS = -Wl,--out-implib,$(SHARED_IMPORT_LIBRARY)
-SHARED_LINKER_INPUTS = $(SHARED_EXPORTS)
-else
-$(error Unsupported PLATFORM '$(PLATFORM)'; use PLATFORM=posix or PLATFORM=windows)
-endif
+	LIB_STATIC = libjalloc.a
 
-ARFLAGS = rcs
-CFLAGS ?= -O2
-CDBGFLAGS ?= -O0 -g
-CSTD ?= -std=c17
-WARNINGS ?= -Wall -Wextra -Wpedantic -Werror
+	ifeq (${shell uname -s},Darwin)
+		SHARED_FLAGS = -dynamiclib
+		LIB_SHARED = libjalloc.dylib
 
-PROJECT_CPPFLAGS = -Iinclude -Isrc $(PLATFORM_CPPFLAGS)
-TEST_CPPFLAGS = -DJALLOC_UNITTESTING -Itest -Itest/third-party
-BASE_CPPFLAGS = $(CPPFLAGS) $(PROJECT_CPPFLAGS)
-BASE_CFLAGS = $(CFLAGS) $(CSTD) $(WARNINGS) $(PLATFORM_CFLAGS)
+		# On MacOS shm is in libc, so we don't need -lrt
+		LDLIBS =
+	else
+		SHARED_FLAGS = -shared
+		LIB_SHARED = libjalloc.so
+	endif
 
-DOXYGEN ?= doxygen
-DOCS_DIR ?= docs
+	OBJ = ${addprefix ${BUILD_DIR}/, ${SRC:.c=.o}}
 
-LIB_SOURCES = $(sort $(wildcard src/*.c src/*/*.c))
-TEST_SOURCES = $(sort $(wildcard test/*.c test/*/*.c))
+	TEST_CPPFLAGS = ${CPPFLAGS} -I${TEST_DIR} -I${TEST_THIRDPARTY_DIR} -DJALLOC_UNITTESTING
+	TEST_CFLAGS = ${CFLAGS} -I${TEST_DIR} -I${TEST_THIRDPARTY_DIR}
+	TEST_LDFLAGS = ${LDFLAGS}
+	TEST_LDLIBS = ${LDLIBS} -lm
 
-STATIC_OBJECTS = $(patsubst src/%.c,$(BUILD_DIR)/static/%.o,$(LIB_SOURCES))
-SHARED_OBJECTS = $(patsubst src/%.c,$(BUILD_DIR)/shared/%.o,$(LIB_SOURCES))
-TEST_OBJECTS = $(patsubst test/%.c,$(BUILD_DIR)/test/%.o,$(TEST_SOURCES))
-TEST_LIBRARY_OBJECTS = $(patsubst src/%.c,$(BUILD_DIR)/test-lib/%.o,$(LIB_SOURCES))
+	TEST_LIB_OBJ = ${addprefix ${BUILD_DIR}/test_lib/, ${SRC:.c=.o}}
+	TEST_LIB_STATIC = ${BUILD_DIR}/libjalloc_test.a
 
-STATIC_FLAGS_FILE = $(BUILD_DIR)/.static-compile-flags
-SHARED_FLAGS_FILE = $(BUILD_DIR)/.shared-compile-flags
-TEST_FLAGS_FILE = $(BUILD_DIR)/.test-compile-flags
-TEST_LIBRARY_FLAGS_FILE = $(BUILD_DIR)/.test-library-compile-flags
-STATIC_ARCHIVE_FLAGS_FILE = $(BUILD_DIR)/.static-archive-flags
-TEST_ARCHIVE_FLAGS_FILE = $(BUILD_DIR)/.test-archive-flags
-LINK_FLAGS_FILE = $(BUILD_DIR)/.link-flags
+	TEST_OBJ = ${addprefix ${BUILD_DIR}/, ${TEST_SRC:.c=.o}}
+	TEST_BIN = ${BUILD_DIR}/testjalloc
 
-DEPFILES = $(STATIC_OBJECTS:.o=.d) $(SHARED_OBJECTS:.o=.d) \
-	$(TEST_OBJECTS:.o=.d) $(TEST_LIBRARY_OBJECTS:.o=.d)
+${LIB_STATIC}: ${OBJ}
+	@mkdir -p ${dir $@}
+	${AR} ${ARFLAGS} $@ $^
 
-.DEFAULT_GOAL := all
-.DELETE_ON_ERROR:
-.PHONY: all dbg shared test docs mrproper win win-shared win-test FORCE
+shared: ${LIB_SHARED}
 
-all: $(STATIC_LIBRARY)
+${LIB_SHARED}: ${OBJ}
+	@mkdir -p ${dir $@}
+	${CC} ${SHARED_FLAGS} ${LDFLAGS} -o $@ $^ ${LDLIBS}
 
-# Convenience targets for a MinGW-w64 Windows build. Equivalent explicit
-# invocations are: make PLATFORM=windows, ... shared, or ... test.
-win:
-	$(MAKE) PLATFORM=windows all
+${BUILD_DIR}/test_lib/%.o: %.c
+	@mkdir -p ${dir $@}
+	${CC} ${TEST_CPPFLAGS} ${TEST_CFLAGS} -c $< -o $@
 
-win-shared:
-	$(MAKE) PLATFORM=windows shared
+${BUILD_DIR}/${TEST_DIR}/%.o: ${TEST_DIR}/%.c
+	@mkdir -p ${dir $@}
+	${CC} ${TEST_CPPFLAGS} ${TEST_CFLAGS} -c $< -o $@
 
-win-test:
-	$(MAKE) PLATFORM=windows test
+${BUILD_DIR}/%.o: %.c
+	@mkdir -p ${dir $@}
+	${CC} ${CPPFLAGS} ${CFLAGS} -c $< -o $@
 
-dbg: CFLAGS = $(CDBGFLAGS)
-dbg: $(STATIC_LIBRARY)
+${TEST_LIB_STATIC}: ${TEST_LIB_OBJ}
+	@mkdir -p ${dir $@}
+	${AR} ${ARFLAGS} $@ $^
 
-shared: $(SHARED_LIBRARY)
+test: ${TEST_BIN}
+	$<
 
-test: $(TEST_BINARY)
-	$(TEST_BINARY)
-
-docs:
-	@printf '%s\n' \
-		'PROJECT_NAME = jalloc' \
-		'OUTPUT_DIRECTORY = "$(DOCS_DIR)"' \
-		'INPUT = include src' \
-		'RECURSIVE = YES' \
-		'FILE_PATTERNS = *.h *.c' \
-		'EXTRACT_ALL = YES' \
-		'GENERATE_HTML = YES' \
-		'GENERATE_LATEX = NO' \
-		'QUIET = YES' | $(DOXYGEN) -
+${TEST_BIN}: ${TEST_OBJ} ${TEST_LIB_STATIC}
+	@mkdir -p ${dir $@}
+	${CC} ${TEST_LDFLAGS} -o $@ $^ ${TEST_LDLIBS}
 
 mrproper:
-	rm -rf "$(BUILD_ROOT)" "$(BUILD_DIR)" "$(STATIC_LIBRARY)" \
-		"$(SHARED_LIBRARY)" "$(TEST_BINARY)" "$(TEST_LIBRARY)" "$(DOCS_DIR)"
+	rm -rf ${BUILD_DIR} ${LIB_STATIC} ${LIB_SHARED} ${DOCS_DIR}
 
-# The flag files make changed compiler/linker options invalidate old outputs
-# without rebuilding everything on every make invocation.
-$(STATIC_FLAGS_FILE): FORCE
-	@mkdir -p "$(@D)"
-	@printf '%s\n' '$(CC) $(BASE_CPPFLAGS) $(BASE_CFLAGS)' | cmp -s - "$@" || \
-		printf '%s\n' '$(CC) $(BASE_CPPFLAGS) $(BASE_CFLAGS)' > "$@"
+.PHONY: shared mrproper test
 
-$(SHARED_FLAGS_FILE): FORCE
-	@mkdir -p "$(@D)"
-	@printf '%s\n' '$(CC) $(BASE_CPPFLAGS) $(BASE_CFLAGS) $(PICFLAGS)' | cmp -s - "$@" || \
-		printf '%s\n' '$(CC) $(BASE_CPPFLAGS) $(BASE_CFLAGS) $(PICFLAGS)' > "$@"
+else ifeq (${PLATFORM},Windows)
 
-$(TEST_FLAGS_FILE): FORCE
-	@mkdir -p "$(@D)"
-	@printf '%s\n' '$(CC) $(BASE_CPPFLAGS) $(TEST_CPPFLAGS) $(BASE_CFLAGS)' | cmp -s - "$@" || \
-		printf '%s\n' '$(CC) $(BASE_CPPFLAGS) $(TEST_CPPFLAGS) $(BASE_CFLAGS)' > "$@"
+	# MSVC
+	SHELL = cmd.exe
+	.SHELLFLAGS = /c
 
-$(TEST_LIBRARY_FLAGS_FILE): FORCE
-	@mkdir -p "$(@D)"
-	@printf '%s\n' '$(CC) $(BASE_CPPFLAGS) -DJALLOC_UNITTESTING $(BASE_CFLAGS)' | cmp -s - "$@" || \
-		printf '%s\n' '$(CC) $(BASE_CPPFLAGS) -DJALLOC_UNITTESTING $(BASE_CFLAGS)' > "$@"
+	CC = cl
+	AR = lib
+	LD = link
 
-$(STATIC_ARCHIVE_FLAGS_FILE): FORCE
-	@mkdir -p "$(@D)"
-	@printf '%s\n' '$(AR) $(ARFLAGS)' | cmp -s - "$@" || \
-		printf '%s\n' '$(AR) $(ARFLAGS)' > "$@"
+	CPPFLAGS = /I${INCLUDE_DIR} /I${SRC_DIR}
+	CFLAGS = /std:c17 /W4 /WX /nologo
+	LDFLAGS =
+	LDLIBS =
 
-$(TEST_ARCHIVE_FLAGS_FILE): FORCE
-	@mkdir -p "$(@D)"
-	@printf '%s\n' '$(AR) $(ARFLAGS)' | cmp -s - "$@" || \
-		printf '%s\n' '$(AR) $(ARFLAGS)' > "$@"
+	SHARED_CPPFLAGS = /DJALLOC_BUILD_SHARED
 
-$(LINK_FLAGS_FILE): FORCE
-	@mkdir -p "$(@D)"
-	@printf '%s\n' '$(CC) $(LDFLAGS) $(LDLIBS) $(SHARED_PLATFORM_FLAGS) $(SHARED_IMPORT_LIBRARY)' | cmp -s - "$@" || \
-		printf '%s\n' '$(CC) $(LDFLAGS) $(LDLIBS) $(SHARED_PLATFORM_FLAGS) $(SHARED_IMPORT_LIBRARY)' > "$@"
+	LIB_STATIC = jalloc.lib
+	LIB_SHARED = jalloc.dll
+	LIB_IMPORT = jalloc.lib
+	LIB_EXPORT = jalloc.exp
 
-$(BUILD_DIR)/static/%.o: src/%.c $(STATIC_FLAGS_FILE)
-	@mkdir -p "$(@D)"
-	$(CC) $(BASE_CPPFLAGS) $(BASE_CFLAGS) -MMD -MP -c $< -o $@
+	OBJ = ${addprefix ${BUILD_DIR}/, ${SRC:.c=.obj}}
 
-$(BUILD_DIR)/shared/%.o: src/%.c $(SHARED_FLAGS_FILE)
-	@mkdir -p "$(@D)"
-	$(CC) $(BASE_CPPFLAGS) $(BASE_CFLAGS) $(PICFLAGS) -MMD -MP -c $< -o $@
+	# MSVC does not like greatest, so i need to define D_CRT_SECURE_NO_WARNINGS
+	TEST_CPPFLAGS = ${CPPFLAGS} /I${TEST_DIR} /I${TEST_THIRDPARTY_DIR} /DJALLOC_UNITTESTING /D_CRT_SECURE_NO_WARNINGS
+	TEST_CFLAGS = ${CFLAGS}
 
-$(BUILD_DIR)/test/%.o: test/%.c $(TEST_FLAGS_FILE)
-	@mkdir -p "$(@D)"
-	$(CC) $(BASE_CPPFLAGS) $(TEST_CPPFLAGS) $(BASE_CFLAGS) -MMD -MP -c $< -o $@
+	TEST_LIB_OBJ = ${addprefix ${BUILD_DIR}/test_lib/, ${SRC:.c=.obj}}
+	TEST_LIB_STATIC = ${BUILD_DIR}\jalloc_test.lib
 
-$(BUILD_DIR)/test-lib/%.o: src/%.c $(TEST_LIBRARY_FLAGS_FILE)
-	@mkdir -p "$(@D)"
-	$(CC) $(BASE_CPPFLAGS) -DJALLOC_UNITTESTING $(BASE_CFLAGS) -MMD -MP -c $< -o $@
+	TEST_OBJ = ${addprefix ${BUILD_DIR}/, ${TEST_SRC:.c=.obj}}
+	TEST_BIN = ${BUILD_DIR}\testjalloc.exe
 
-$(STATIC_LIBRARY): $(STATIC_OBJECTS) $(STATIC_ARCHIVE_FLAGS_FILE)
-	@mkdir -p "$(@D)"
-	rm -f "$@"
-	$(AR) $(ARFLAGS) $@ $(STATIC_OBJECTS)
+${LIB_STATIC}: ${OBJ}
+	if not exist ${subst /,\,${dir $@}} mkdir ${subst /,\,${dir $@}}
+	${AR} /OUT:$@ $^
 
-$(TEST_LIBRARY): $(TEST_LIBRARY_OBJECTS) $(TEST_ARCHIVE_FLAGS_FILE)
-	@mkdir -p "$(@D)"
-	rm -f "$@"
-	$(AR) $(ARFLAGS) $@ $(TEST_LIBRARY_OBJECTS)
+shared: ${LIB_SHARED}
 
-$(TEST_BINARY): $(TEST_OBJECTS) $(TEST_LIBRARY) $(LINK_FLAGS_FILE)
-	@mkdir -p "$(@D)"
-	$(CC) $(LDFLAGS) -o $@ $(TEST_OBJECTS) $(TEST_LIBRARY) $(LDLIBS) -lm
+${LIB_SHARED}: CPPFLAGS += ${SHARED_CPPFLAGS}
 
-ifeq ($(PLATFORM),posix)
-$(SHARED_EXPORTS): Makefile
-	@mkdir -p "$(@D)"
-	@printf '%s\n' '{' '  global:' '    jalloc;' '    jcalloc;' '    jrealloc;' '    jfree;' '  local:' '    *;' '};' > "$@"
-else
-$(SHARED_EXPORTS): Makefile
-	@mkdir -p "$(@D)"
-	@printf '%s\n' 'LIBRARY jalloc' 'EXPORTS' '    jalloc' '    jcalloc' '    jrealloc' '    jfree' > "$@"
+${LIB_SHARED}: ${OBJ}
+	if not exist ${subst /,\,${dir $@}} mkdir ${subst /,\,${dir $@}}
+	${LD} /DLL /OUT:${LIB_SHARED} /IMPLIB:${LIB_IMPORT} $^
+	if exist ${LIB_EXPORT} move /Y ${LIB_EXPORT} ${BUILD_DIR}\${LIB_EXPORT}
+
+${BUILD_DIR}/test_lib/%.obj: %.c
+	if not exist ${subst /,\,${dir $@}} mkdir ${subst /,\,${dir $@}}
+	${CC} ${TEST_CPPFLAGS} ${TEST_CFLAGS} /c $< /Fo:$@
+
+${BUILD_DIR}/${TEST_DIR}/%.obj: ${TEST_DIR}/%.c
+	if not exist ${subst /,\,${dir $@}} mkdir ${subst /,\,${dir $@}}
+	${CC} ${TEST_CPPFLAGS} ${TEST_CFLAGS} /c $< /Fo:$@
+
+${BUILD_DIR}/%.obj: %.c
+	if not exist ${subst /,\,${dir $@}} mkdir ${subst /,\,${dir $@}}
+	${CC} ${CPPFLAGS} ${CFLAGS} /c $< /Fo:$@
+
+${TEST_LIB_STATIC}: ${TEST_LIB_OBJ}
+	if not exist ${subst /,\,${dir $@}} mkdir ${subst /,\,${dir $@}}
+	${AR} /OUT:$@ $^
+
+test: ${TEST_BIN}
+	$<
+
+${TEST_BIN}: ${TEST_OBJ} ${TEST_LIB_STATIC}
+	if not exist ${subst /,\,${dir $@}} mkdir ${subst /,\,${dir $@}}
+	${LD} /OUT:$@ $^ ${TEST_LIB_STATIC}
+
+mrproper:
+	if exist ${BUILD_DIR} rmdir /S /Q ${BUILD_DIR}
+	if exist ${LIB_STATIC} del /Q ${LIB_STATIC}
+	if exist ${LIB_SHARED} del /Q ${LIB_SHARED}
+	if exist ${DOCS_DIR} rmdir /S /Q ${DOCS_DIR}
+
+.PHONY: shared mrproper test
+
 endif
 
-$(SHARED_LIBRARY): $(SHARED_OBJECTS) $(SHARED_EXPORTS) $(LINK_FLAGS_FILE)
-	@mkdir -p "$(@D)"
-	$(CC) -shared $(LDFLAGS) $(SHARED_PLATFORM_FLAGS) -o $@ \
-		$(SHARED_LINKER_INPUTS) $(SHARED_OBJECTS) $(LDLIBS)
+DOXYGEN ?= doxygen
+DOXYFILE ?= Doxyfile
 
--include $(DEPFILES)
+docs:
+	${DOXYGEN} ${DOXYFILE}
 
-FORCE:
+.PHONY: docs

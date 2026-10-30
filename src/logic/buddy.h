@@ -27,7 +27,7 @@
  *
  * @param blkp Pointer to the block to split.
  * @param factorder Absolute order of a \p blkp unsplit block (<= JALLOC_MAXORDER).
- * @param targorder Order of a \p blkp block to reach (<= JALLOC_MAXORDER, >= \p targorder).
+ * @param targorder Order of a \p blkp block to reach (JALLOC_MINORDER <= \p targorder < \p factorder).
  *
  * @note When the block is split, the rhs block (a.k.a. "buddy") is marked as free and the lhs block is split again.
  */

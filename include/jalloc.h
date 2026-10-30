@@ -14,6 +14,26 @@
 
 #include <stddef.h>
 
+#if defined(_MSC_VER)
+
+#if defined(JALLOC_BUILD_SHARED)
+#define JALLOC_PUBAPI __declspec(dllexport)
+#elif defined(JALLOC_DLL) /* && !JALLOC_BUILD_SHARED */
+#define JALLOC_PUBAPI __declspec(dllimport)
+#else /* !JALLOC_BUILD_SHARED && !JALLOC_DLL */
+#define JALLOC_PUBAPI
+#endif /* !JALLOC_BUILD_SHARED */
+
+#elif defined(__has_attribute) && __has_attribute(visibility) /* && !_MSC_VER */
+
+#define JALLOC_PUBAPI __attribute__((visibility("default")))
+
+#else /* !visibility && !_MSC_VER */
+
+#define JALLOC_PUBAPI
+
+#endif /* _MSC_VER */
+
 /**
  * @defgroup jalloc The public allocator interface.
  */
@@ -28,21 +48,21 @@
  * @return Pointer to the beginning of the allocated memory area on success.
  * @return NULL on error (errno is set).
  *
- * @note Function can allocate at most JALLOC_MAXBLKSZ - JALLOC_BLKHDRSZ per one call.
+ * @note Function can allocate at most 1 MiB per one call in default configuration (see src/cfg/conf.h).
  */
-void *
+JALLOC_PUBAPI void *
 jalloc(size_t sz);
 
 /**
  * @brief Allocates certain count of elements of the certain size and initializes memory.
  *
  * @param nmemb Elements count to allocate (non-zero).
- * @param sz Size of each element.
+ * @param sz Size of each element (non-zero).
  *
  * @return Pointer to the first byte of the first allocated element on success.
  * @return NULL on error (errno is set).
  */
-void *
+JALLOC_PUBAPI void *
 jcalloc(size_t nmemb, size_t sz);
 
 /**
@@ -56,9 +76,9 @@ jcalloc(size_t nmemb, size_t sz);
  *
  * @note jrealloc(NULL, sz) call is the equivalent of jalloc(sz) call (see jalloc docs).
  * @note jrealloc(ptr, 0) call is equivalent of jfree(ptr) call (see jfree docs).
- * @note Function is able to allocate at most JALLOC_MAXBLKSZ - JALLOC_BLKHDRSZ per call.
+ * @note Function is able to allocate at most 1 MiB per call in default configuration.
  */
-void *
+JALLOC_PUBAPI void *
 jrealloc(void * ptr, size_t sz);
 
 /**
@@ -70,7 +90,7 @@ jrealloc(void * ptr, size_t sz);
  * @note If the pointer was not allocated via jalloc, then the behaviour is undefined.
  * @note If the pointer was already freed via jfree, then the process aborts.
  */
-void
+JALLOC_PUBAPI void
 jfree(void * ptr);
 
 /** @} */

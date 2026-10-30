@@ -26,24 +26,27 @@
 #if defined(_MSC_VER) && !defined(__clang__)
 
 /* love msvc very much xd */
-typedef union {
-    long long   ll;
-    long double ld;
-    void *       p;
-    void         (*fnp)(void);
+
+typedef union jalloc_max_align {
+	long long   ll;
+	long double ld;
+	void *	    p;
+	void (*fnp)(void);
 } jalloc_max_align_t;
 
 #define JALLOC_ALIGN (_Alignof(jalloc_max_align_t)) /**< The system-specific alignment. */
 
 #else /* !_MSC_VER || __clang__ */
+
 #define JALLOC_ALIGN (_Alignof(max_align_t)) /**< The system-specific alignment. */
+
 #endif /* _MSC_VER && !__clang__ */
 
 /**
- * @brief Aligns the value up to certain alignment parameter.
+ * @brief Aligns the value up to certain alignment parameter, that is power of 2.
  *
  * @param x The value to align up.
- * @param align The alignment parameter.
+ * @param align The alignment parameter (must be the power of 2).
  *
  * @return The aligned to \p align value of \p x.
  *
@@ -51,22 +54,40 @@ typedef union {
  */
 #define JALLOC_ALIGNUP(x, align) (((x) + (align) - 1) & ~((align) - 1))
 
-#define JALLOC_MINORDER (5)  /**< Minimal absolute order of a block */
-#define JALLOC_MAXORDER (20) /**< Maximal absolute order of a block */
+/* CONFIGURABLE */
+/* The following macros must be integer */
+#define JALLOC_MINORDER	 (5)  /**< Minimal absolute order of a block */
+#define JALLOC_MAXORDER	 (20) /**< Maximal absolute order of a block */
+#define JALLOC_CHUNKMULT (4)  /**< Allocation chunk size multiplier (configurable) */
+
+_Static_assert(JALLOC_CHUNKMULT >= 1, "Chunk size multiplier must be positive integer");
+
+/* The result of `(size_t)1 << JALLOC_MINORDER` must be defined */
+_Static_assert(JALLOC_MINORDER > 0, "Min order must be positive");
+
+/* The result of `(size_t)1 << JALLOC_MAXORDER` must be defined */
+_Static_assert(JALLOC_MAXORDER < 8 * sizeof(size_t), "Max order must be less than bits count in size_t");
+
+_Static_assert(JALLOC_MINORDER <= JALLOC_MAXORDER, "Max order must be equal or greater than min order");
 
 #define JALLOC_ORDERCNT (JALLOC_MAXORDER - JALLOC_MINORDER + 1) /**< Block order count */
 
-/* Only 4 bits are used to store the order of the block */
+/* Only 4 bits in the block header are used to store the order of the block */
 _Static_assert(1 <= JALLOC_ORDERCNT && JALLOC_ORDERCNT <= 16, "Order count must be between 1 and 16");
 
-#define JALLOC_MINBLKSZ (1 << JALLOC_MINORDER) /**< Minimal block size */
-#define JALLOC_MAXBLKSZ (1 << JALLOC_MAXORDER) /**< Maximal block size */
+#define JALLOC_MINBLKSZ ((size_t)1 << JALLOC_MINORDER) /**< Minimal block size */
+#define JALLOC_MAXBLKSZ ((size_t)1 << JALLOC_MAXORDER) /**< Maximal block size */
 
-#define JALLOC_CHUNKSZ (4 * JALLOC_MAXBLKSZ) /**< Allocation chunk size */
+/* Check for the overflow */
+_Static_assert(SIZE_MAX / JALLOC_CHUNKMULT > JALLOC_MAXBLKSZ, "Chunk size must not exceed SIZE_MAX");
+
+#define JALLOC_CHUNKSZ                                                                                                 \
+	((size_t)JALLOC_CHUNKMULT *                                                                                    \
+	 JALLOC_MAXBLKSZ) /**< Allocation chunk size (must be a multiple of system page size) */
 
 /* This assertion is requirement of the block alignment */
 _Static_assert(
-    JALLOC_CHUNKSZ % JALLOC_MAXBLKSZ == 0, "Allocator chunk size must be a multiple of allocator max block size");
+    JALLOC_CHUNKSZ % JALLOC_MAXBLKSZ == 0, "Allocator chunk size must be a multiple of the allocator max block size");
 
 typedef uint8_t jalloc_byte_t; /**< The type used for a pointer arithmetic */
 

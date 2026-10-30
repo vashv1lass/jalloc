@@ -66,7 +66,7 @@ jalloc(size_t sz)
 void *
 jcalloc(size_t nmemb, size_t sz)
 {
-	if (nmemb == 0) {
+	if (nmemb == 0 || sz == 0) {
 		errno = EINVAL;
 		return NULL;
 	}
@@ -99,7 +99,7 @@ jrealloc(void * ptr, size_t sz)
 
 	void *	blkhdr	 = JALLOC_BLKHDR(ptr);
 	uint8_t oldorder = JALLOC_GET_ORDER(blkhdr);
-	size_t	oldcap	 = (1 << oldorder) - JALLOC_BLKHDRSZ; /* bytes count to copy if necessary */
+	size_t	oldcap	 = ((size_t)1 << oldorder) - JALLOC_BLKHDRSZ; /* bytes count to copy if necessary */
 
 	uint8_t reqorder = jblkorder(sz + JALLOC_BLKHDRSZ);
 	if (reqorder > JALLOC_MAXORDER) {

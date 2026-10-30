@@ -16,8 +16,9 @@
 #include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
-#if _POSIX_C_SOURCE >= 200809L
+#if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200809L
 
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -39,7 +40,8 @@ josmemrequest(size_t sz)
 	if (pagesz_conf == -1) return NULL;
 	size_t const PAGESZ = (size_t)pagesz_conf;
 
-	if (sz % PAGESZ != 0) {
+	/* 99.9% that page size is the power of 2 */
+	if (sz % PAGESZ != 0 || (PAGESZ & (PAGESZ - 1)) != 0 || JALLOC_CHUNKSZ % PAGESZ != 0) {
 		errno = EINVAL;
 		return NULL;
 	}
@@ -51,11 +53,72 @@ josmemrequest(size_t sz)
 	}
 	size_t totalsz = sz + align;
 
-	int anonymous_fd = open("/dev/zero", O_RDWR);
-	if (anonymous_fd == -1) return NULL;
+#if defined(MAP_ANONYMOUS)
 
-	void * raw = mmap(NULL, totalsz, PROT_READ | PROT_WRITE, MAP_PRIVATE, anonymous_fd, 0);
-	close(anonymous_fd); /* won't set errno (/dev/zero close is safe) */
+	void * raw = mmap(NULL, totalsz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+#elif defined(MAP_ANON) /* && !defined(MAP_ANONYMOUS) */
+
+	void * raw = mmap(NULL, totalsz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+
+#else /* !MAP_ANONYMOUS && !MAP_ANON */
+
+	/* IEEE 1003.1-2008 */
+
+	/*
+	 * OFF_MAX is not defined in every system, so create it by yourself
+	 * off_t must be at most 64 bit length
+	 *
+	 * OFF_MAX = ((1 << (sizeof(off_t) * 8 - 2)) - 1) | (1 << (sizeof(off_t) * 8 - 2))
+	 * 1. First 1 << (sizeof(off_t) * 8 - 2) set the second MSB to 1, '- 1' sets it to 0, and all the
+	 * bits that are less significant to 1.
+	 * 2. Second 1 << (sizeof(off_t) * 8 - 2) set the second MSB to 1.
+	 * 3. The logical OR ('|') concats two terms. We got OFF_MAX
+	 *
+	 * This overcomplication is due to the instability of using other methods (like casting shifted values from the
+	 * uint64_t type)
+	 */
+	if (totalsz > (size_t)((((off_t)1 << (sizeof(off_t) * 8 - 2)) - 1) | ((off_t)1 << (sizeof(off_t) * 8 - 2)))) {
+		/* totalsz must be in range of off_t. if not, then it is impossible to do `ftruncate()` later */
+		errno = EFBIG;
+		return NULL;
+	}
+
+	/*
+	 * 16 max characters for pid, 16 max characters for shmcnt, 1 character for an underscore,
+	 * 1 character for trailing '\0' symbol, 1 character for '/' prefix.
+	 *
+	 * not 14 as POSIX says, but it is complicated to maintain this case, so it will just be documented
+	 */
+	char		shmname[64];
+	static unsigned shmcnt = 0;
+	int shmname_sz	       = snprintf(shmname, sizeof(shmname), "/%x_%x", (unsigned)getpid(), (unsigned)shmcnt++);
+	if (shmname_sz < 0 || shmname_sz >= (int)sizeof(shmname)) {
+		/* this code is likely dead */
+		errno = EINVAL;
+		return NULL;
+	}
+
+	int shmfd = shm_open(shmname, O_RDWR | O_CREAT | O_EXCL, 0600);
+	if (shmfd == -1) return NULL;
+	if (shm_unlink(shmname) == -1) {
+		close(shmfd);
+		return NULL;
+	}
+
+	/* totalsz is in range of off_t */
+	if (ftruncate(shmfd, (off_t)totalsz) == -1) {
+		close(shmfd);
+		return NULL;
+	}
+
+	void * raw = mmap(NULL, totalsz, PROT_READ | PROT_WRITE, MAP_PRIVATE, shmfd, 0);
+	if (close(shmfd) == -1) {
+		if (raw != MAP_FAILED) munmap(raw, totalsz);
+		return NULL;
+	}
+
+#endif /* !MAP_ANONYMOUS && !MAP_ANON */
 
 	if (raw == MAP_FAILED) return NULL;
 
@@ -122,7 +185,7 @@ josmemrequest(size_t sz)
 	GetSystemInfo(&sysinfo);
 	size_t const PAGESZ = (size_t)sysinfo.dwPageSize;
 
-	if (sz % PAGESZ != 0) {
+	if (sz % PAGESZ != 0 || JALLOC_CHUNKSZ % PAGESZ != 0 || (PAGESZ & (PAGESZ - 1)) != 0) {
 		errno = EINVAL;
 		return NULL;
 	}

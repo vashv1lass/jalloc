@@ -7,15 +7,15 @@
 
 #include <stddef.h>
 
-#if _POSIX_C_SOURCE >= 200809L
+#if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200809L
 
 #include <unistd.h>
 
 size_t
 getpagesz(void)
 {
-    /* "SIZE_MAX on error" */
-    return (size_t)sysconf(_SC_PAGESIZE);
+	/* "SIZE_MAX on error" */
+	return (size_t)sysconf(_SC_PAGESIZE);
 }
 
 #elif defined(_WIN32) /* && _POSIX_C_SOURCE < 200809L */

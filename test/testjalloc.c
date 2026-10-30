@@ -12,6 +12,12 @@
 #include <jalloc.h>
 #include <stdint.h>
 
+#if defined(_MSC_VER) && !defined(__clang__)
+
+#include <malloc.h> /* _alloca */
+
+#endif /* _MSC_VER && !__clang__ */
+
 TEST
 jalloc_verify_einval(void)
 {
@@ -42,7 +48,6 @@ jalloc_verify_enomem(void)
 	PASS();
 }
 
-/* this test assumes JALLOC_MAXBLKSZ >= 1024 + JALLOC_BLKHDRSZ */
 TEST
 jalloc_verify_alignment(void)
 {
@@ -65,10 +70,6 @@ jalloc_verify_alignment(void)
 	PASS();
 }
 
-/*
- * this test assumes JALLOC_MAXBLKSZ > 4 * sizeof(uint8_t) + JALLOC_BLKHDRSZ
- *
- * (it's unlikely to be any other way, just for mathematical certainty) */
 TEST
 jalloc_verify_persistency(void)
 {
@@ -102,7 +103,7 @@ jalloc_verify_stress(void)
 
 #if defined(_MSC_VER) && !defined(__clang__)
 
-	void **	     ptrs = alloca(ALLOCCNT * sizeof(void *)); /* love MSVC very much! */
+	void ** ptrs = _alloca(ALLOCCNT * sizeof(void *)); /* love MSVC very much! */
 
 #else /* !_MSC_VER || __clang__ */
 
@@ -135,7 +136,7 @@ jalloc_verify_fragmentation(void)
 
 #if defined(_MSC_VER) && !defined(__clang__)
 
-	void **	     ptrs = alloca(ALLOCCNT * sizeof(void *)); /* love MSVC very much! */
+	void ** ptrs = _alloca(ALLOCCNT * sizeof(void *)); /* love MSVC very much! */
 
 #else /* !_MSC_VER || __clang__ */
 
