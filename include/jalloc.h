@@ -24,9 +24,13 @@
 #    define JALLOC_PUBAPI
 #endif /* !JALLOC_BUILD_SHARED */
 
-#else /* !_MSC_VER */
+#elif defined(__has_attribute) && __has_attribute(visibility) /* && !_MSC_VER */
 
-#define JALLOC_PUBAPI /* default visibility */
+#define JALLOC_PUBAPI __attribute__((visibility("default")))
+
+#else /* !visibility && !_MSC_VER */
+
+#define JALLOC_PUBAPI
 
 #endif /* _MSC_VER */
 

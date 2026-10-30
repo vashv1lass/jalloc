@@ -83,7 +83,7 @@ jmemrequest_verify(void)
 
 	/* block structure check */
 	void * firstblkp = jfreelist_peek(JALLOC_MAXORDER);
-	void * curblkp = firstblkp;
+	void * curblkp	 = firstblkp;
 	for (size_t i = 0; i < sz; i++) {
 		void * curblkhdr = JALLOC_BLKHDR(curblkp);
 
@@ -93,7 +93,7 @@ jmemrequest_verify(void)
 		curblkp = JALLOC_FREELISTNEXT(curblkp);
 
 		/* posix and windows unmapping is very different */
-#if _POSIX_C_SOURCE >= 200809L
+#if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200809L
 		/* unmap every block to avoid memory leaks */
 		if (josmemreturn(curblkhdr, JALLOC_MAXBLKSZ) == -1) FAILm("josmemreturn failed");
 #endif /* _POSIX_C_SOURCE >= 200809L */

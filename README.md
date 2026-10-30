@@ -13,18 +13,38 @@ allocation via custom memory allocation logic and memory mapping.
 
 #### Mandatory
 
-- C17-compatible compiler that supports `uintptr_t` (your compiler likely supports)
-- Flat memory model (your system likely satisfies this condition)
-- GNU make (or MinGW make)
-- Windows or POSIX-compatible operating system (some kinds of embedded systems
-like FreeRTOS are not supported). Also system must have page size, that is
-power of 2 (99.9% systems satisfy this condition).
+##### Overall
 
-##### Windows
+- C17-compatible compiler that supports `uintptr_t` (your C17 compiler likely
+  supports).
+- Flat memory model (your system likely satisfies this condition)
+- GNU make (or MinGW make for Windows)
+- Windows or POSIX-compatible operating system (some kinds of embedded systems
+  like FreeRTOS are not supported). Also system must have page size, that is
+  power of 2 (your system also likely satisfies this condition).
+- Byte must be equal 8 bits (`CHAR_BIT == 8`) without any padding bits.
+  Your system likely satisfies this condition.
+
+##### POSIX-specific
+
+- Your POSIX-system must support Shared Memory Objects / Realtime (your system
+  likely supports it).
+- (Linux only): your Linux system must have realtime library for it (-lrt)
+  (in practice, your system either has it or even does not strictly require it).
+- Maximum length of the file name on your system must be at least 35
+  characters (it may be strict 14, as IEEE 1003.1-2008 says and in practice,
+  everything should (and will) work perfectly on such systems, but purely from
+  mathematical point of view, 100% confidence is achieved with at least 35
+  characters). Also, your system likely has 255 characters limitation, so this
+  restriction most likely does not apply to you.
+- C17 compiler must support such GNU/Clang-like flags as -fPIC and -fvisibility.
+
+##### Windows-specific
 
 - Make sure Microsoft Visual Studio is installed (project is compiled via MSVC
-cl.exe)
-- You will need to build the project from the Developer Command Prompt
+  cl.exe)
+- You will need to build the project from the Developer Command Prompt or add
+  cl.exe to `PATH`
 
 #### Optional
 
@@ -33,14 +53,18 @@ cl.exe)
 ### Configuring
 
 Configuring is suckless-like. You are able to configure the allocator in
-`src/cfg/conf.h` file. You can configure:
+`src/cfg/conf.h` file. You are able to configure the following:
+
 - `JALLOC_MINORDER` parameter.
 - `JALLOC_MAXORDER` parameter.
-- `JALLOC_CHUNKSZ` parameter.
+- `JALLOC_CHUNKMULT` parameter.
 
 Make sure that values of these parameters satisfies the static assertions.
 
 ### Building
+
+> [!NOTE]
+> If you want to rebuild your project, make sure you have called `mrproper` before.
 
 Build the static library:
 
@@ -56,9 +80,9 @@ Build the shared library:
 make shared # Generates .so (Linux/BSD) or .dylib (Darwin) shared (i.e.
             # "dynamic") library in the root of the project
 
-mingw32-make PLATFORM=Windows shared # Generates .dll (Windows) dynamic
-                                     # link (i.e. "shared") library in
-                                     # the root of the project
+mingw32-make PLATFORM=Windows shared # Generates .dll (Windows) dynamic link
+                                     # (i.e. "shared") library and .lib (for
+                                     # your project) in the root.
 ```
 
 Run the test suite:
@@ -147,12 +171,82 @@ main(void)
 
 ### Compiling, linking and running
 
-For example, let the platform be POSIX-compatible, `jalloc.h` be in `include/`
-directory, `libjalloc.a` be in `lib/` directory, example source code file has
-the name of `example.c` and the project is compiled via `gcc`.
+#### Static library
+
+##### POSIX-compatible platforms
+
+For example, let the project structure be like that:
+
+```text
+example/
+├── include/
+│   └── jalloc.h
+├── lib/
+│   └── libjalloc.a
+└── example.c
+```
+
+Then, you can compile your program like that:
 
 ```bash
-gcc -std=c17 -Iinclude example.c lib/libjalloc.a -o example
+gcc -std=c17 -Iinclude example.c lib/libjalloc.a -o example -lrt
+```
+
+> [!NOTE]
+> `-lrt` is likely not neccessary and also (on Darwin systems like MacOS) may be
+> even extraneous.
+
+##### Windows platforms
+
+> [!WARNING]
+> I do NOT recommend this path, use compile your project with jalloc imported as
+> .dll instead!
+
+Let the project structure be the same, but instead of `libjalloc.a` in the
+`lib/` directory, we have a `jalloc.lib` library in it.
+
+On Windows, the usage of static libraries is not safe due to `.lib` file
+structure (it exposes the private API symbols). Nevertheless, to build the
+project with Windows static library, you should do the following in the
+Developer Command Prompt (or add cl.exe in `PATH`):
+
+```powershell
+cl /std:c17 /Iinclude example.c lib\jalloc.lib /Fe:example.exe
+```
+
+#### Shared (dynamic) library
+
+##### POSIX compatible platforms
+
+###### Darwin (MacOS)
+
+Let the project structure also be the same, but in the `lib/` directory, there's
+a `libjalloc.dylib` library in it. Also the compiler will be clang, but on Mac,
+by default, `gcc` is just a symlink for `clang`, so there's no difference:
+
+```zsh
+clang -std=c17 -Iinclude example.c lib/libjalloc.dylib -o example \
+           -Wl,-rpath,@loader_path/lib
+```
+
+###### Other POSIX-compatible systems (like Linux)
+
+On other POSIX systems, with `.so` file in `lib/` directory, the project
+building algorithm will be the following:
+
+```bash
+gcc -std=c17 -Iinclude example.c lib/libjalloc.so -o example \
+         -Wl,-rpath,'$ORIGIN/lib' -lrt
+```
+
+##### Windows systems
+
+To build your project on Windows via importing `jalloc` as a dynamic link
+library, put the `.dll` file in the directory, where the `.exe` file will be
+located, and `.lib` file in `lib/` directory. Then do the following:
+
+```powershell
+cl /std:c17 /Iinclude example.c lib\jalloc.lib /Fe:test.exe
 ```
 
 ## Design
@@ -171,7 +265,7 @@ The allocator is organized into several layers:
 - A single allocation cannot exceed the configured maximum payload size.
 - No thread-safety.
 - Allocator does not return memory to OS (not a leak, but bad memory
-utilization)
+  utilization)
 
 ## Development vector
 

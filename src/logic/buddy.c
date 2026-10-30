@@ -24,7 +24,7 @@ jsplit(void * blkp, uint8_t factorder, uint8_t targorder)
 	uint8_t wasfree = JALLOC_GET_FREE(JALLOC_BLKHDR(blkp));
 
 	while (factorder-- > targorder) {
-		void * rhsbuddy = (void *)((jalloc_byte_t *)blkp + (ptrdiff_t)((size_t)1 << factorder));
+		void * rhsbuddy = (void *)((jalloc_byte_t *)blkp + ((size_t)1 << factorder));
 
 		JALLOC_SET_BLKHDR(JALLOC_BLKHDR(rhsbuddy), factorder, 0x01);
 		jfreelist_pushblk(rhsbuddy);

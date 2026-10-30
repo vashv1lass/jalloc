@@ -18,7 +18,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#if _POSIX_C_SOURCE >= 200809L
+#if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200809L
 
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -64,10 +64,35 @@ josmemrequest(size_t sz)
 #else /* !MAP_ANONYMOUS && !MAP_ANON */
 
 	/* IEEE 1003.1-2008 */
-	char	      shmname[64];
-	static size_t shmcnt = 0;
 
-	int shmname_sz = snprintf(shmname, sizeof(shmname), "/%d-josmemreq-%zu-%zu", (int)getpid(), totalsz, shmcnt++);
+	/*
+	 * OFF_MAX is not defined in every system, so create it by yourself
+	 * off_t must be at most 64 bit length
+	 *
+	 * OFF_MAX = ((1 << (sizeof(off_t) * 8 - 2)) - 1) | (1 << (sizeof(off_t) * 8 - 2))
+	 * 1. First 1 << (sizeof(off_t) * 8 - 2) set the second MSB to 1, '- 1' sets it to 0, and all the
+	 * bits that are less significant to 1.
+	 * 2. Second 1 << (sizeof(off_t) * 8 - 2) set the second MSB to 1.
+	 * 3. The logical OR ('|') concats two terms. We got OFF_MAX
+	 *
+	 * This overcomplication is due to the instability of using other methods (like casting shifted values from the
+	 * uint64_t type)
+	 */
+	if (totalsz > (size_t)((((off_t)1 << (sizeof(off_t) * 8 - 2)) - 1) | ((off_t)1 << (sizeof(off_t) * 8 - 2)))) {
+		/* totalsz must be in range of off_t. if not, then it is impossible to do `ftruncate()` later */
+		errno = EFBIG;
+		return NULL;
+	}
+
+	/*
+	 * 16 max characters for pid, 16 max characters for shmcnt, 1 character for an underscore,
+	 * 1 character for trailing '\0' symbol, 1 character for '/' prefix.
+	 *
+	 * not 14 as POSIX says, but it is complicated to maintain this case, so it will just be documented
+	 */
+	char		shmname[64];
+	static unsigned shmcnt = 0;
+	int shmname_sz	       = snprintf(shmname, sizeof(shmname), "/%x_%x", (unsigned)getpid(), (unsigned)shmcnt++);
 	if (shmname_sz < 0 || shmname_sz >= (int)sizeof(shmname)) {
 		/* this code is likely dead */
 		errno = EINVAL;
@@ -76,15 +101,22 @@ josmemrequest(size_t sz)
 
 	int shmfd = shm_open(shmname, O_RDWR | O_CREAT | O_EXCL, 0600);
 	if (shmfd == -1) return NULL;
-	if (shm_unlink(shmname) == -1) return NULL;
+	if (shm_unlink(shmname) == -1) {
+		close(shmfd);
+		return NULL;
+	}
 
+	/* totalsz is in range of off_t */
 	if (ftruncate(shmfd, (off_t)totalsz) == -1) {
 		close(shmfd);
 		return NULL;
 	}
 
 	void * raw = mmap(NULL, totalsz, PROT_READ | PROT_WRITE, MAP_PRIVATE, shmfd, 0);
-	if (close(shmfd) == -1) return NULL;
+	if (close(shmfd) == -1) {
+		if (raw != MAP_FAILED) munmap(raw, totalsz);
+		return NULL;
+	}
 
 #endif /* !MAP_ANONYMOUS && !MAP_ANON */
 

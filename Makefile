@@ -27,15 +27,22 @@ ifeq (${PLATFORM},POSIX)
 	ARFLAGS = rcs
 
 	CPPFLAGS ?= -I${INCLUDE_DIR} -I${SRC_DIR} -D_POSIX_C_SOURCE=200809L
-	CFLAGS ?= -std=c17 -Wall -Wextra -Wpedantic -Werror -fPIC
+	CFLAGS ?= -std=c17 -Wall -Wextra -Wpedantic -Werror -fPIC -fvisibility=hidden
 	LDFLAGS ?=
 	LDLIBS ?=
+
+	ifeq (${shell uname -s},Linux)
+		LDLIBS += -lrt
+	endif
 
 	LIB_STATIC = libjalloc.a
 
 	ifeq (${shell uname -s},Darwin)
 		SHARED_FLAGS = -dynamiclib
 		LIB_SHARED = libjalloc.dylib
+
+		# On MacOS shm is in libc, so we don't need -lrt
+		LDLIBS =
 	else
 		SHARED_FLAGS = -shared
 		LIB_SHARED = libjalloc.so
